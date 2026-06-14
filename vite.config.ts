@@ -10,6 +10,12 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
+      workbox: {
+        // Pretendard 폰트(~2MB)를 오프라인 프리캐시에 포함
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+      },
+
       manifest: {
         name: '실적가계부',
         short_name: '실적가계부',
