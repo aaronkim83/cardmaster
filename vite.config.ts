@@ -9,7 +9,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png'],
       workbox: {
         // Pretendard 폰트(~2MB)를 오프라인 프리캐시에 포함
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
@@ -24,6 +24,11 @@ export default defineConfig({
         background_color: '#F5F4F0',
         display: 'standalone',
         lang: 'ko',
+        icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
     }),
   ],
