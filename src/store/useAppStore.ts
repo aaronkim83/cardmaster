@@ -74,6 +74,12 @@ interface AppState {
   saveBudget: (b: Budget) => Promise<void>;
   saveCategory: (c: Category) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
+  reorderCategories: (ordered: Category[]) => Promise<void>;
+
+  saveRecurring: (r: RecurringRule) => Promise<void>;
+  deleteRecurring: (id: string) => Promise<void>;
+
+  restoreFromBackup: (data: unknown) => Promise<void>;
 }
 
 const TAB_SCREENS: ScreenId[] = ['home', 'ledger', 'input', 'stats', 'more'];
@@ -168,7 +174,40 @@ export const useAppStore = create<AppState>((set, get) => ({
     await reload(set);
   },
   deleteCategory: async (id) => {
+    // 소분류가 있으면 함께 삭제 (대분류 삭제 시)
+    await db.categories.where('parentId').equals(id).delete();
     await db.categories.delete(id);
+    await reload(set);
+  },
+  reorderCategories: async (ordered) => {
+    await db.categories.bulkPut(ordered.map((c, i) => ({ ...c, sortOrder: i })));
+    await reload(set);
+  },
+
+  saveRecurring: async (r) => {
+    await db.recurringRules.put(r);
+    await reload(set);
+  },
+  deleteRecurring: async (id) => {
+    await db.recurringRules.delete(id);
+    await reload(set);
+  },
+
+  restoreFromBackup: async (data) => {
+    const d = data as Record<string, unknown[]>;
+    const tables: [keyof typeof db, unknown[] | undefined][] = [
+      ['accounts', d.accounts], ['transactions', d.transactions], ['categories', d.categories],
+      ['budgets', d.budgets], ['benefits', d.benefits], ['recurringRules', d.recurringRules],
+      ['balanceSnapshots', d.balanceSnapshots], ['settings', d.settings],
+    ];
+    await db.transaction('rw', [db.accounts, db.transactions, db.categories, db.budgets, db.benefits, db.recurringRules, db.balanceSnapshots, db.settings], async () => {
+      for (const [name, rows] of tables) {
+        if (!Array.isArray(rows)) continue;
+        const table = db[name] as unknown as { clear: () => Promise<void>; bulkAdd: (r: unknown[]) => Promise<unknown> };
+        await table.clear();
+        if (rows.length) await table.bulkAdd(rows);
+      }
+    });
     await reload(set);
   },
 }));

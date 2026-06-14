@@ -1,16 +1,31 @@
+import { useState } from 'react';
+import { nanoid } from 'nanoid';
 import { useAppStore } from '../store/useAppStore';
 import { useMonthlyData } from '../store/useMonthlyData';
 import { accountBalance } from '../logic/balance';
-import { AppHead, MonthNav } from '../ui/components';
+import { AppHead, AddButton, MonthNav } from '../ui/components';
+import { Modal, Labeled, TextInput, PrimaryButton, ChoiceRow } from '../ui/Modal';
 import { won } from '../ui/format';
+import type { Account, AccountType } from '../db/types';
+
+const TYPE_LABEL: Record<string, string> = { bank: '입출금', savings: '예적금', investment: '투자', cash: '현금', card: '카드', realestate: '부동산', loan: '대출', other: '기타' };
+const ASSET_TYPES: { value: AccountType; label: string }[] = [
+  { value: 'bank', label: '입출금' }, { value: 'savings', label: '예적금' }, { value: 'investment', label: '투자' }, { value: 'cash', label: '현금' }, { value: 'realestate', label: '부동산' }, { value: 'other', label: '기타' },
+];
 
 export function AssetsScreen() {
   const accounts = useAppStore((s) => s.accounts);
   const transactions = useAppStore((s) => s.transactions);
+  const saveAccount = useAppStore((s) => s.saveAccount);
+  const deleteAccount = useAppStore((s) => s.deleteAccount);
+  const navigate = useAppStore((s) => s.navigate);
   const data = useMonthlyData();
+  const [editing, setEditing] = useState<Account | null>(null);
 
   const assets = accounts.filter((a) => a.kind === 'asset' && a.isActive);
   const liabilities = accounts.filter((a) => a.kind === 'liability' && a.isActive);
+
+  const open = (a: Account) => (a.type === 'card' ? navigate('cardedit', { accountId: a.id }) : setEditing(a));
 
   return (
     <>
@@ -23,32 +38,57 @@ export function AssetsScreen() {
         </div>
 
         <div className="mb-2.5 mt-5 text-[11px] font-bold uppercase tracking-[0.13em] text-faint">자산</div>
-        {assets.map((a) => (
-          <Row key={a.id} color={a.color} icon={a.icon} name={a.name} type={a.type} manual={a.balanceMode === 'manual'} amount={accountBalance(a, transactions)} />
-        ))}
+        {assets.map((a) => <Row key={a.id} a={a} amount={accountBalance(a, transactions)} onClick={() => open(a)} />)}
+        <div className="mt-1"><AddButton onClick={() => setEditing(blank())}>＋ 계좌 추가</AddButton></div>
 
         {liabilities.length > 0 && <div className="mb-2.5 mt-5 text-[11px] font-bold uppercase tracking-[0.13em] text-faint">부채 · 카드대금</div>}
-        {liabilities.map((a) => (
-          <Row key={a.id} color={a.color} icon={a.icon} name={a.name} type={a.type} amount={accountBalance(a, transactions)} />
-        ))}
+        {liabilities.map((a) => <Row key={a.id} a={a} amount={accountBalance(a, transactions)} onClick={() => open(a)} />)}
       </div>
+
+      {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSave={async (a) => { await saveAccount(a); setEditing(null); }} onDelete={async (id) => { await deleteAccount(id); setEditing(null); }} />}
     </>
   );
 }
 
-function Row({ color, icon, name, type, amount, manual }: { color?: string; icon?: string; name: string; type: string; amount: number; manual?: boolean }) {
+function blank(): Account {
+  return { id: nanoid(), name: '', kind: 'asset', type: 'bank', balanceMode: 'calculated', openingBalance: 0, isPinned: false, isActive: true, sortOrder: 0, color: '#3A7D44', icon: '계', createdAt: Date.now() };
+}
+
+function Row({ a, amount, onClick }: { a: Account; amount: number; onClick: () => void }) {
   return (
-    <div className="mb-2 flex items-center gap-3 rounded-[13px] bg-surface px-[15px] py-[13px] shadow-card">
-      <span className="flex h-8 w-8 flex-none items-center justify-center rounded-[9px] text-[13px] font-extrabold text-white" style={{ background: color ?? 'var(--sub)' }}>{icon ?? '·'}</span>
+    <div onClick={onClick} className="mb-2 flex items-center gap-3 rounded-[13px] bg-surface px-[15px] py-[13px] shadow-card">
+      <span className="flex h-8 w-8 flex-none items-center justify-center rounded-[9px] text-[13px] font-extrabold text-white" style={{ background: a.color ?? 'var(--sub)' }}>{a.icon ?? '·'}</span>
       <div>
-        <div className="text-[13.5px] font-semibold">{name}</div>
-        <div className="mt-px text-[11px] font-semibold text-faint">{TYPE_LABEL[type] ?? type}{manual && <span className="ml-1.5 rounded-[5px] border border-line px-1.5 py-px text-[9px] font-bold">수동</span>}</div>
+        <div className="text-[13.5px] font-semibold">{a.name}</div>
+        <div className="mt-px text-[11px] font-semibold text-faint">{TYPE_LABEL[a.type] ?? a.type}{a.balanceMode === 'manual' && <span className="ml-1.5 rounded-[5px] border border-line px-1.5 py-px text-[9px] font-bold">수동</span>}</div>
       </div>
       <span className={`num ml-auto text-[14.5px] font-bold ${amount < 0 ? 'text-warn' : ''}`}>{amount < 0 ? '−' : ''}{won(Math.abs(amount))}원</span>
     </div>
   );
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  bank: '입출금', savings: '예적금', investment: '투자', cash: '현금', card: '카드', realestate: '부동산', loan: '대출', other: '기타',
-};
+function AccountForm({ account, onClose, onSave, onDelete }: { account: Account; onClose: () => void; onSave: (a: Account) => void; onDelete: (id: string) => void }) {
+  const [d, setD] = useState<Account>(account);
+  const isNew = !useAppStore.getState().accounts.some((x) => x.id === account.id);
+
+  return (
+    <Modal title={isNew ? '계좌 추가' : '계좌 편집'} onClose={onClose}>
+      <div className="flex gap-2.5">
+        <Labeled label="아이콘"><TextInput value={d.icon ?? ''} onChange={(e) => setD({ ...d, icon: e.target.value })} style={{ width: 64, textAlign: 'center' }} /></Labeled>
+        <div className="flex-1"><Labeled label="이름"><TextInput value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} placeholder="계좌 이름" /></Labeled></div>
+      </div>
+      <Labeled label="종류"><ChoiceRow options={ASSET_TYPES} value={d.type} onChange={(v) => setD({ ...d, type: v })} /></Labeled>
+      <Labeled label="잔액 방식"><ChoiceRow options={[{ value: 'calculated', label: '거래로 계산' }, { value: 'manual', label: '수동 입력' }]} value={d.balanceMode} onChange={(v) => setD({ ...d, balanceMode: v })} /></Labeled>
+      {d.balanceMode === 'calculated' ? (
+        <Labeled label="시작 잔액 (원)"><TextInput type="number" value={d.openingBalance} onChange={(e) => setD({ ...d, openingBalance: Number(e.target.value) })} /></Labeled>
+      ) : (
+        <Labeled label="현재 잔액 (원)"><TextInput type="number" value={d.manualBalance ?? 0} onChange={(e) => setD({ ...d, manualBalance: Number(e.target.value) })} /></Labeled>
+      )}
+      <div className="flex gap-2.5">
+        <Labeled label="색상"><input type="color" value={d.color ?? '#3A7D44'} onChange={(e) => setD({ ...d, color: e.target.value })} className="h-11 w-16 rounded-[10px] border-[1.5px] border-line bg-surface" /></Labeled>
+      </div>
+      <PrimaryButton onClick={() => d.name.trim() && onSave(d)}>저장</PrimaryButton>
+      {!isNew && <button onClick={() => onDelete(d.id)} className="mt-2 w-full rounded-[13px] bg-warn-bg py-3 text-center text-[13px] font-bold text-warn">삭제</button>}
+    </Modal>
+  );
+}

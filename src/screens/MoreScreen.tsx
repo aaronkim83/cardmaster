@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useAppStore, type ScreenId } from '../store/useAppStore';
 import { db } from '../db/schema';
 import { AppHead } from '../ui/components';
@@ -11,6 +12,24 @@ const MANAGE: { screen: ScreenId; icon: string; name: string; desc: string }[] =
 
 export function MoreScreen() {
   const navigate = useAppStore((s) => s.navigate);
+  const restoreFromBackup = useAppStore((s) => s.restoreFromBackup);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function restore(file: File) {
+    try {
+      const data = JSON.parse(await file.text());
+      if (!data || typeof data !== 'object' || !Array.isArray(data.transactions)) {
+        alert('백업 파일 형식이 올바르지 않아요.');
+        return;
+      }
+      if (!confirm('현재 데이터를 모두 지우고 백업으로 복원할까요?')) return;
+      await restoreFromBackup(data);
+      alert('복원되었습니다.');
+      navigate('home');
+    } catch {
+      alert('파일을 읽을 수 없어요.');
+    }
+  }
 
   async function backup() {
     const data = {
@@ -47,8 +66,10 @@ export function MoreScreen() {
 
         <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">설정</div>
         <Row icon="🏷️" name="카테고리 관리" desc="아이콘·색상·실적 제외 설정" onClick={() => navigate('category')} />
-        <Row icon="💾" name="백업 · 복원" desc="JSON 내보내기" onClick={backup} />
+        <Row icon="💾" name="백업 (JSON 내보내기)" desc="전 데이터를 파일로 저장" onClick={backup} />
+        <Row icon="♻️" name="복원 (JSON 불러오기)" desc="백업 파일에서 데이터 복구" onClick={() => fileRef.current?.click()} />
         <Row icon="⚙️" name="환경설정" desc="알림 · 표시 · 저장소" />
+        <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void restore(f); e.target.value = ''; }} />
       </div>
     </>
   );
