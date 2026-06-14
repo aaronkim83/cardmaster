@@ -43,29 +43,32 @@ export function AppShell() {
     if (navigator.storage?.persist) void navigator.storage.persist();
   }, [loadAll]);
 
-  // 키보드가 뜨면 visualViewport 높이로 앱 높이를 줄여 하단 버튼이 가려지지 않게 함
+  // 키보드 높이만 --kb로 추적(앱 높이는 100dvh 고정 → 스크롤 출렁임 방지).
+  // 키보드가 뜨면 폼 스크롤 여유 + 모달 위치 보정에 사용.
   useEffect(() => {
     const vv = window.visualViewport;
+    if (!vv) return;
     const apply = () => {
-      const h = vv?.height ?? window.innerHeight;
-      document.documentElement.style.setProperty('--app-h', `${h}px`);
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty('--kb', `${kb}px`);
     };
     apply();
-    vv?.addEventListener('resize', apply);
-    vv?.addEventListener('scroll', apply);
-    window.addEventListener('resize', apply);
+    vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', apply);
     return () => {
-      vv?.removeEventListener('resize', apply);
-      vv?.removeEventListener('scroll', apply);
-      window.removeEventListener('resize', apply);
+      vv.removeEventListener('resize', apply);
+      vv.removeEventListener('scroll', apply);
     };
   }, []);
 
   const Screen = SCREENS[screen];
 
   return (
-    <div className="mx-auto flex max-w-[480px] flex-col bg-canvas" style={{ height: 'var(--app-h, 100dvh)' }}>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+    <div className="mx-auto flex h-[100dvh] max-w-[480px] flex-col bg-canvas">
+      <div
+        className="flex-1 overflow-y-auto overflow-x-hidden [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden"
+        style={{ paddingBottom: 'var(--kb, 0px)' }}
+      >
         {loaded ? <Screen /> : <div className="p-10 text-center text-sm text-sub">불러오는 중…</div>}
       </div>
       <TabBar />

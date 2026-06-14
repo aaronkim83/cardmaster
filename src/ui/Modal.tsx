@@ -1,15 +1,14 @@
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
-// 하단 시트형 모달. 키보드가 떠도 시트가 가시 영역(--app-h) 안에 머물도록 높이 제한.
+// 하단 시트형 모달. document.body로 포털 → 탭바/앱 컨테이너 위로 확실히 띄움.
+// 키보드가 뜨면 --kb 만큼 위로 올려 저장 버튼이 키보드에 가리지 않게 함.
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  return (
-    <div
-      className="fixed inset-x-0 top-0 z-50 flex items-end justify-center bg-black/40"
-      style={{ height: 'var(--app-h, 100dvh)' }}
-      onClick={onClose}
-    >
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
-        className="mx-auto max-h-full w-full max-w-[480px] overflow-y-auto rounded-t-3xl bg-canvas p-[18px] pb-[max(28px,env(safe-area-inset-bottom))] [&::-webkit-scrollbar]:hidden"
+        className="mx-auto w-full max-w-[480px] overflow-y-auto rounded-t-3xl bg-canvas p-[18px] pb-[max(28px,env(safe-area-inset-bottom))] [&::-webkit-scrollbar]:hidden"
+        style={{ marginBottom: 'var(--kb, 0px)', maxHeight: 'calc(100dvh - var(--kb, 0px) - 24px)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3.5 flex items-center justify-between">
@@ -18,7 +17,8 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
