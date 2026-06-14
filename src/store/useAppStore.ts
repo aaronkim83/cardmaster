@@ -78,6 +78,9 @@ interface AppState {
 
 const TAB_SCREENS: ScreenId[] = ['home', 'ledger', 'input', 'stats', 'more'];
 
+// 모듈 레벨 시드 1회 가드 (동시 호출 dedupe)
+let seedOnce: Promise<void> | null = null;
+
 export const useAppStore = create<AppState>((set, get) => ({
   selectedMonth: todayYM(),
   loaded: false,
@@ -116,8 +119,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   loadAll: async () => {
-    await seedDatabaseIfEmpty();
-    await seedDemoDataIfEmpty();
+    // StrictMode 이중 마운트/동시 호출에서 시드가 두 번 돌지 않도록 1회 보장
+    seedOnce ??= (async () => {
+      await seedDatabaseIfEmpty();
+      await seedDemoDataIfEmpty();
+    })();
+    await seedOnce;
     await reload(set);
   },
 
