@@ -64,7 +64,7 @@ export function AppShell() {
   const Screen = SCREENS[screen];
 
   return (
-    <div className="mx-auto flex h-[100dvh] max-w-[480px] flex-col bg-canvas">
+    <div className="mx-auto flex h-[100dvh] max-w-[480px] flex-col bg-canvas pt-[env(safe-area-inset-top)]">
       <div
         className="flex-1 overflow-y-auto overflow-x-hidden [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden"
         style={{ paddingBottom: 'var(--kb, 0px)' }}

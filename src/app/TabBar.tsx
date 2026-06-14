@@ -12,7 +12,7 @@ export function TabBar() {
   const navigate = useAppStore((s) => s.navigate);
 
   return (
-    <div className="flex flex-none border-t border-line bg-surface px-2 pb-[22px] pt-2">
+    <div className="flex flex-none border-t border-line bg-surface px-2 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
       <Tab tab={TABS[0]} active={screen === 'home'} onClick={() => navigate('home')} />
       <Tab tab={TABS[1]} active={screen === 'ledger'} onClick={() => navigate('ledger')} />
       <div className="flex w-[54px] flex-none justify-center">

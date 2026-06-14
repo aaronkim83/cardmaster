@@ -8,7 +8,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
         className="mx-auto w-full max-w-[480px] overflow-y-auto rounded-t-3xl bg-canvas p-[18px] pb-[max(28px,env(safe-area-inset-bottom))] [&::-webkit-scrollbar]:hidden"
-        style={{ marginBottom: 'var(--kb, 0px)', maxHeight: 'calc(100dvh - var(--kb, 0px) - 24px)' }}
+        style={{ marginBottom: 'var(--kb, 0px)', maxHeight: 'calc(100dvh - var(--kb, 0px) - env(safe-area-inset-top) - 16px)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3.5 flex items-center justify-between">
