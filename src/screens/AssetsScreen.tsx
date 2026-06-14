@@ -4,7 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { useMonthlyData } from '../store/useMonthlyData';
 import { accountBalance } from '../logic/balance';
 import { AppHead, AddButton, MonthNav } from '../ui/components';
-import { Modal, Labeled, TextInput, PrimaryButton, ChoiceRow } from '../ui/Modal';
+import { Modal, Labeled, TextInput, NumberField, PrimaryButton, ChoiceRow } from '../ui/Modal';
 import { won } from '../ui/format';
 import type { Account, AccountType } from '../db/types';
 
@@ -80,9 +80,9 @@ function AccountForm({ account, onClose, onSave, onDelete }: { account: Account;
       <Labeled label="종류"><ChoiceRow options={ASSET_TYPES} value={d.type} onChange={(v) => setD({ ...d, type: v })} /></Labeled>
       <Labeled label="잔액 방식"><ChoiceRow options={[{ value: 'calculated', label: '거래로 계산' }, { value: 'manual', label: '수동 입력' }]} value={d.balanceMode} onChange={(v) => setD({ ...d, balanceMode: v })} /></Labeled>
       {d.balanceMode === 'calculated' ? (
-        <Labeled label="시작 잔액 (원)"><TextInput type="number" value={d.openingBalance} onChange={(e) => setD({ ...d, openingBalance: Number(e.target.value) })} /></Labeled>
+        <Labeled label="시작 잔액 (원)"><NumberField value={d.openingBalance} onChange={(n) => setD({ ...d, openingBalance: n })} /></Labeled>
       ) : (
-        <Labeled label="현재 잔액 (원)"><TextInput type="number" value={d.manualBalance ?? 0} onChange={(e) => setD({ ...d, manualBalance: Number(e.target.value) })} /></Labeled>
+        <Labeled label="현재 잔액 (원)"><NumberField value={d.manualBalance ?? 0} onChange={(n) => setD({ ...d, manualBalance: n })} /></Labeled>
       )}
       <div className="flex gap-2.5">
         <Labeled label="색상"><input type="color" value={d.color ?? '#3A7D44'} onChange={(e) => setD({ ...d, color: e.target.value })} className="h-11 w-16 rounded-[10px] border-[1.5px] border-line bg-surface" /></Labeled>

@@ -43,10 +43,28 @@ export function AppShell() {
     if (navigator.storage?.persist) void navigator.storage.persist();
   }, [loadAll]);
 
+  // 키보드가 뜨면 visualViewport 높이로 앱 높이를 줄여 하단 버튼이 가려지지 않게 함
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const apply = () => {
+      const h = vv?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty('--app-h', `${h}px`);
+    };
+    apply();
+    vv?.addEventListener('resize', apply);
+    vv?.addEventListener('scroll', apply);
+    window.addEventListener('resize', apply);
+    return () => {
+      vv?.removeEventListener('resize', apply);
+      vv?.removeEventListener('scroll', apply);
+      window.removeEventListener('resize', apply);
+    };
+  }, []);
+
   const Screen = SCREENS[screen];
 
   return (
-    <div className="mx-auto flex h-[100dvh] max-w-[480px] flex-col bg-canvas">
+    <div className="mx-auto flex max-w-[480px] flex-col bg-canvas" style={{ height: 'var(--app-h, 100dvh)' }}>
       <div className="flex-1 overflow-y-auto overflow-x-hidden [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
         {loaded ? <Screen /> : <div className="p-10 text-center text-sm text-sub">불러오는 중…</div>}
       </div>

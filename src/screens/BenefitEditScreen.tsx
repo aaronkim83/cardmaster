@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { nanoid } from 'nanoid';
 import { useAppStore } from '../store/useAppStore';
 import { Toggle } from '../ui/components';
+import { NumberField } from '../ui/Modal';
 import type { Benefit } from '../db/types';
 
 function blank(accountId: string): Benefit {
@@ -39,8 +40,8 @@ export function BenefitEditScreen() {
 
         <div className="mb-3.5 overflow-hidden rounded-[13px] shadow-card">
           <Row k="적용 대상 가맹점" v={<input value={draft.targetMerchant ?? ''} onChange={(e) => setDraft({ ...draft, targetMerchant: e.target.value || undefined })} placeholder="(전체)" className="rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
-          <Row k="비율 (%)" v={<input type="number" value={Math.round(draft.rate * 100)} onChange={(e) => setDraft({ ...draft, rate: Number(e.target.value) / 100 })} className="num w-20 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
-          <Row k="월 한도 (원)" v={<input type="number" value={draft.monthlyLimit ?? 0} onChange={(e) => setDraft({ ...draft, monthlyLimit: Number(e.target.value) || undefined })} className="num w-28 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} last />
+          <Row k="비율 (%)" v={<NumberField value={Math.round(draft.rate * 100)} onChange={(n) => setDraft({ ...draft, rate: n / 100 })} className="num w-20 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
+          <Row k="월 한도 (원)" v={<NumberField value={draft.monthlyLimit ?? 0} onChange={(n) => setDraft({ ...draft, monthlyLimit: n || undefined })} className="num w-28 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} last />
         </div>
 
         <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">조건</div>

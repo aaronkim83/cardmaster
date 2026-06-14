@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import { useAppStore } from '../store/useAppStore';
 import { useMonthlyData } from '../store/useMonthlyData';
 import { AddButton, Chip, Toggle } from '../ui/components';
+import { NumberField } from '../ui/Modal';
 import { won } from '../ui/format';
 import type { Account, CardConfig } from '../db/types';
 
@@ -14,7 +15,7 @@ function blankCard(): Account {
     type: 'card',
     balanceMode: 'calculated',
     openingBalance: 0,
-    card: { targetAmount: 300000, cycleType: 'prev_month', trackPerformance: true, excludedCategoryIds: [] },
+    card: { targetAmount: 0, cycleType: 'prev_month', trackPerformance: true, excludedCategoryIds: [] },
     isPinned: false,
     isActive: true,
     sortOrder: 0,
@@ -104,6 +105,6 @@ function Field({ k, v, last }: { k: string; v: React.ReactNode; last?: boolean }
 }
 function NumField({ k, value, onChange, last }: { k: string; value: number; onChange: (n: number) => void; last?: boolean }) {
   return (
-    <Field k={k} last={last} v={<input type="number" value={value} onChange={(e) => onChange(Number(e.target.value))} className="num w-32 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
+    <Field k={k} last={last} v={<NumberField value={value} onChange={onChange} className="num w-32 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
   );
 }

@@ -1,11 +1,15 @@
 import type { ReactNode } from 'react';
 
-// 하단 시트형 모달. 앱 컨테이너(max-w-480) 위에 오버레이.
+// 하단 시트형 모달. 키보드가 떠도 시트가 가시 영역(--app-h) 안에 머물도록 높이 제한.
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-x-0 top-0 z-50 flex items-end justify-center bg-black/40"
+      style={{ height: 'var(--app-h, 100dvh)' }}
+      onClick={onClose}
+    >
       <div
-        className="mx-auto max-h-[88%] w-full max-w-[480px] overflow-y-auto rounded-t-3xl bg-canvas p-[18px] pb-7 [&::-webkit-scrollbar]:hidden"
+        className="mx-auto max-h-full w-full max-w-[480px] overflow-y-auto rounded-t-3xl bg-canvas p-[18px] pb-[max(28px,env(safe-area-inset-bottom))] [&::-webkit-scrollbar]:hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3.5 flex items-center justify-between">
@@ -29,6 +33,33 @@ export function Labeled({ label, children }: { label: string; children: ReactNod
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className="w-full rounded-[10px] border-[1.5px] border-line bg-surface px-3 py-2.5 text-[14px] outline-none focus:border-ink" />;
+}
+
+// 숫자 입력 — 0일 때 빈 칸으로 표시(강제 0/선행 0 방지), 숫자만 허용.
+export function NumberField({
+  value,
+  onChange,
+  placeholder = '0',
+  className,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  return (
+    <input
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={value === 0 ? '' : String(value)}
+      placeholder={placeholder}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/[^\d]/g, '');
+        onChange(digits === '' ? 0 : Number(digits));
+      }}
+      className={className ?? 'w-full rounded-[10px] border-[1.5px] border-line bg-surface px-3 py-2.5 text-[14px] outline-none focus:border-ink'}
+    />
+  );
 }
 
 export function PrimaryButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {

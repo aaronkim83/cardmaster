@@ -5,7 +5,7 @@ import { useAccountMap } from '../store/lookups';
 import { buildCategoryMap, isExcludedForCard } from '../logic/category';
 import { isRuleActiveInMonth, dueDate } from '../logic/recurring';
 import { AppHead, AddButton, Toggle } from '../ui/components';
-import { Modal, Labeled, TextInput, PrimaryButton, ChoiceRow } from '../ui/Modal';
+import { Modal, Labeled, TextInput, NumberField, PrimaryButton, ChoiceRow } from '../ui/Modal';
 import { won } from '../ui/format';
 import type { RecurringRule } from '../db/types';
 
@@ -119,8 +119,8 @@ function RuleForm({ rule, onClose, onSave, onDelete }: { rule: RecurringRule; on
       <Labeled label="이름"><TextInput value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} placeholder="예: 넷플릭스" /></Labeled>
       <Labeled label="유형"><ChoiceRow options={[{ value: 'expense', label: '지출' }, { value: 'income', label: '수입' }]} value={d.type} onChange={(v) => setD({ ...d, type: v })} /></Labeled>
       <div className="flex gap-2.5">
-        <div className="flex-1"><Labeled label="금액 (원)"><TextInput type="number" value={d.amount} onChange={(e) => setD({ ...d, amount: Number(e.target.value) })} /></Labeled></div>
-        <div className="w-28"><Labeled label="결제일"><TextInput type="number" value={d.dayOfMonth} onChange={(e) => setD({ ...d, dayOfMonth: Math.min(Math.max(Number(e.target.value), 1), 31) })} /></Labeled></div>
+        <div className="flex-1"><Labeled label="금액 (원)"><NumberField value={d.amount} onChange={(n) => setD({ ...d, amount: n })} /></Labeled></div>
+        <div className="w-28"><Labeled label="결제일"><NumberField value={d.dayOfMonth} onChange={(n) => setD({ ...d, dayOfMonth: Math.min(Math.max(n, 1), 31) })} /></Labeled></div>
       </div>
       <Labeled label="결제수단">
         <select value={d.accountId} onChange={(e) => setD({ ...d, accountId: e.target.value })} className="w-full rounded-[10px] border-[1.5px] border-line bg-surface px-3 py-2.5 text-[14px] outline-none">
