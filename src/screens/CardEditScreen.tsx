@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { nanoid } from 'nanoid';
 import { useAppStore } from '../store/useAppStore';
 import { useMonthlyData } from '../store/useMonthlyData';
-import { AddButton, Chip, Toggle } from '../ui/components';
+import { AppHead, AddButton, Chip, Toggle } from '../ui/components';
 import { NumberField } from '../ui/Modal';
 import { won } from '../ui/format';
 import type { Account, CardConfig } from '../db/types';
@@ -50,10 +50,10 @@ export function CardEditScreen() {
 
   return (
     <>
-      <div className="flex items-baseline justify-between px-[18px] pb-3 pt-2.5">
-        <h1 className="text-[22px] font-extrabold tracking-[-0.03em]">카드 설정</h1>
-        {existing && <span className="rounded-lg bg-warn-bg px-[11px] py-1.5 text-[12px] font-bold text-warn" onClick={async () => { await deleteAccount(draft.id); navigate('cards'); }}>🗑 삭제</span>}
-      </div>
+      <AppHead
+        title="카드 설정"
+        right={existing && <span className="rounded-lg bg-warn-bg px-[11px] py-1.5 text-[12px] font-bold text-warn" onClick={async () => { await deleteAccount(draft.id); navigate('cards'); }}>🗑 삭제</span>}
+      />
       <div className="px-[18px] pb-[120px]">
         <div className="mb-4 flex items-center gap-[11px]">
           <Chip color={draft.color} size={36}>{draft.icon}</Chip>

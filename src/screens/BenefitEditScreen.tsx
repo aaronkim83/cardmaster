@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { nanoid } from 'nanoid';
 import { useAppStore } from '../store/useAppStore';
-import { Toggle } from '../ui/components';
+import { AppHead, Toggle } from '../ui/components';
 import { NumberField } from '../ui/Modal';
 import type { Benefit } from '../db/types';
 
@@ -22,10 +22,10 @@ export function BenefitEditScreen() {
 
   return (
     <>
-      <div className="flex items-baseline justify-between px-[18px] pb-3 pt-2.5">
-        <h1 className="text-[22px] font-extrabold tracking-[-0.03em]">혜택 설정</h1>
-        {existing && <span className="rounded-lg bg-warn-bg px-[11px] py-1.5 text-[12px] font-bold text-warn" onClick={async () => { await deleteBenefit(draft.id); goBack(); }}>🗑 삭제</span>}
-      </div>
+      <AppHead
+        title="혜택 설정"
+        right={existing && <span className="rounded-lg bg-warn-bg px-[11px] py-1.5 text-[12px] font-bold text-warn" onClick={async () => { await deleteBenefit(draft.id); goBack(); }}>🗑 삭제</span>}
+      />
       <div className="px-[18px] pb-[120px]">
         <div className="mb-3.5 overflow-hidden rounded-[13px] shadow-card">
           <Row k="혜택 이름" v={<input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} last />

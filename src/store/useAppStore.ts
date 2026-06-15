@@ -56,7 +56,7 @@ interface AppState {
   goPrevMonth: () => void;
   goNextMonth: () => void;
 
-  navigate: (screen: ScreenId, params?: NavParams) => void;
+  navigate: (screen: ScreenId, params?: NavParams, options?: { preserveHistory?: boolean }) => void;
   goBack: () => void;
 
   loadAll: () => Promise<void>;
@@ -106,10 +106,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   goPrevMonth: () => set({ selectedMonth: prevMonth(get().selectedMonth) }),
   goNextMonth: () => set({ selectedMonth: nextMonth(get().selectedMonth) }),
 
-  navigate: (screen, params = {}) => {
+  navigate: (screen, params = {}, options = {}) => {
     const cur = get();
     // 탭 전환은 히스토리를 리셋, 상세 진입은 스택에 쌓기
-    const history = TAB_SCREENS.includes(screen)
+    const history = TAB_SCREENS.includes(screen) && !options.preserveHistory
       ? []
       : [...cur.history, { screen: cur.screen, params: cur.params }];
     set({ screen, params, history });

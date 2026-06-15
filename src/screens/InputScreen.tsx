@@ -27,6 +27,8 @@ export function InputScreen() {
   const [incomeCatId, setIncomeCatId] = useState('');
   const [perfOverride, setPerfOverride] = useState<boolean | null>(null);
   const [merchant, setMerchant] = useState('');
+  const [showAllAccounts, setShowAllAccounts] = useState(false);
+  const [showAllMainCats, setShowAllMainCats] = useState(false);
 
   const catMap = useMemo(() => buildCategoryMap(categories), [categories]);
   const mains = categories.filter((c) => c.type === 'expense' && c.parentId === null).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -35,10 +37,15 @@ export function InputScreen() {
 
   const paymentAccounts = accounts.filter((a) => a.type === 'card' || a.type === 'cash' || a.type === 'bank');
   const depositAccounts = accounts.filter((a) => a.kind === 'asset');
+  const incomeMode = type === 'income';
+  const fromAccounts = incomeMode ? depositAccounts : paymentAccounts;
+  const activeAccountId = fromAccounts.some((a) => a.id === accountId) ? accountId : fromAccounts[0]?.id;
+  const visibleFromAccounts = showAllAccounts ? fromAccounts : fromAccounts.slice(0, 4);
+  const visibleMains = showAllMainCats ? mains : mains.slice(0, 8);
 
   const effectiveCatId = type === 'income' ? incomeCatId : subCatId || mainCatId;
   const autoExcluded = type === 'expense' && isCategoryExcluded(effectiveCatId, catMap);
-  const selectedAccount = accounts.find((a) => a.id === accountId);
+  const selectedAccount = accounts.find((a) => a.id === activeAccountId);
   const autoCounts = type === 'expense' && !!selectedAccount?.card?.trackPerformance && !autoExcluded;
   const perfOn = perfOverride ?? autoCounts;
 
@@ -50,7 +57,7 @@ export function InputScreen() {
 
   async function save() {
     if (amount <= 0) return;
-    const acc = accountId || paymentAccounts[0]?.id;
+    const acc = activeAccountId;
     if (!acc) return;
     await addTransaction({
       date,
@@ -67,27 +74,25 @@ export function InputScreen() {
     navigate('ledger');
   }
 
-  const incomeMode = type === 'income';
-
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-baseline justify-between px-[18px] pb-2 pt-2.5">
-        <h1 className="text-[22px] font-extrabold tracking-[-0.03em]">{incomeMode ? '수입 입력' : type === 'transfer' ? '이체' : '지출 입력'}</h1>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="flex items-baseline justify-between px-[18px] pb-1.5 pt-2">
+        <h1 className="text-[21px] font-extrabold tracking-[-0.03em]">{incomeMode ? '수입 입력' : type === 'transfer' ? '이체' : '지출 입력'}</h1>
         <span className="rounded-lg bg-line2 px-[11px] py-1.5 text-[12px] font-bold text-sub" onClick={() => navigate('import')}>📄 엑셀·붙여넣기</span>
       </div>
 
-      <div className="mx-[18px] mt-1 flex rounded-xl bg-line2 p-[3px]">
+      <div className="mx-[18px] flex rounded-xl bg-line2 p-[3px]">
         {TYPES.map((t) => (
-          <button key={t.value} onClick={() => { setType(t.value); setPerfOverride(null); }} className={`flex-1 rounded-[9px] py-[9px] text-center text-[13px] font-bold ${type === t.value ? 'bg-surface text-ink shadow-sm' : 'text-sub'}`}>{t.label}</button>
+          <button key={t.value} onClick={() => { setType(t.value); setPerfOverride(null); setShowAllAccounts(false); }} className={`flex-1 rounded-[9px] py-2 text-center text-[13px] font-bold ${type === t.value ? 'bg-surface text-ink shadow-sm' : 'text-sub'}`}>{t.label}</button>
         ))}
       </div>
 
-      <div className="flex-none px-5 pb-2 pt-3 text-center">
+      <div className="flex-none px-5 pb-1.5 pt-2 text-center">
         <div className="mb-[5px] text-[11.5px] font-semibold text-sub">금액</div>
-        <div className={`num text-[32px] font-extrabold tracking-[-0.03em] ${incomeMode ? 'text-good' : ''}`}>{won(amount)}<span className="text-faint">원</span></div>
+        <div className={`num text-[30px] font-extrabold tracking-[-0.03em] ${incomeMode ? 'text-good' : ''}`}>{won(amount)}<span className="text-faint">원</span></div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-[18px] pb-2 [&::-webkit-scrollbar]:hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto px-[18px] pb-4 [&::-webkit-scrollbar]:hidden">
         <Group label="날짜">
           <Opts>
             {[0, 1].map((d) => {
@@ -99,12 +104,15 @@ export function InputScreen() {
         </Group>
 
         <Group label={type === 'transfer' ? '출금 계좌' : incomeMode ? '입금 계좌' : '결제수단'}>
-          <Opts>
-            {(incomeMode ? depositAccounts : paymentAccounts).map((a) => (
-              <Opt key={a.id} sel={(accountId || paymentAccounts[0]?.id) === a.id} onClick={() => setAccountId(a.id)}>
+          <Opts scroll={showAllAccounts && fromAccounts.length > 4}>
+            {visibleFromAccounts.map((a) => (
+              <Opt key={a.id} sel={activeAccountId === a.id} onClick={() => setAccountId(a.id)}>
                 <span className="mr-1.5 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ background: a.color ?? 'var(--faint)' }} />{a.name}
               </Opt>
             ))}
+            {fromAccounts.length > 4 && (
+              <Opt more onClick={() => setShowAllAccounts((v) => !v)}>{showAllAccounts ? '접기' : `+${fromAccounts.length - visibleFromAccounts.length}개`}</Opt>
+            )}
           </Opts>
         </Group>
 
@@ -127,12 +135,15 @@ export function InputScreen() {
         ) : (
           <Group label="카테고리">
             <Opts>
-              {mains.map((c) => (
+              {visibleMains.map((c) => (
                 <Opt key={c.id} sel={mainCatId === c.id} onClick={() => { setMainCatId(c.id); setSubCatId(''); setPerfOverride(null); }}>{c.icon} {c.name}{c.defaultExcluded ? '' : ''}</Opt>
               ))}
+              {mains.length > 8 && (
+                <Opt more onClick={() => setShowAllMainCats((v) => !v)}>{showAllMainCats ? '접기' : `+${mains.length - visibleMains.length}개`}</Opt>
+              )}
             </Opts>
             {subs.length > 0 && (
-              <div className="mt-2"><Opts>
+              <div className="mt-2 max-h-[92px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden"><Opts>
                 {subs.map((c) => <Opt key={c.id} sub sel={subCatId === c.id} onClick={() => setSubCatId(c.id)}>{c.name}</Opt>)}
               </Opts></div>
             )}
@@ -164,10 +175,10 @@ export function InputScreen() {
 
       <div className="grid flex-none grid-cols-3 gap-px border-t border-line bg-line">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', '⌫'].map((k) => (
-          <button key={k} onClick={() => key(k)} className="bg-canvas py-2.5 text-center text-lg font-semibold">{k}</button>
+          <button key={k} onClick={() => key(k)} className="bg-canvas py-2 text-center text-lg font-semibold">{k}</button>
         ))}
       </div>
-      <button onClick={save} className={`mx-[18px] mb-2 mt-2.5 flex-none rounded-[13px] py-3 text-center text-[14.5px] font-bold text-white ${incomeMode ? 'bg-good' : 'bg-ink'}`}>저장</button>
+      <button onClick={save} className={`mx-[18px] mb-2 mt-2 flex-none rounded-[13px] py-2.5 text-center text-[14.5px] font-bold text-white ${incomeMode ? 'bg-good' : 'bg-ink'}`}>저장</button>
     </div>
   );
 }
@@ -180,11 +191,11 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
-function Opts({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-wrap gap-[7px]">{children}</div>;
+function Opts({ children, scroll }: { children: React.ReactNode; scroll?: boolean }) {
+  return <div className={`flex flex-wrap gap-[7px] ${scroll ? 'max-h-[106px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden' : ''}`}>{children}</div>;
 }
-function Opt({ children, sel, sub, onClick }: { children: React.ReactNode; sel?: boolean; sub?: boolean; onClick?: () => void }) {
+function Opt({ children, sel, sub, more, onClick }: { children: React.ReactNode; sel?: boolean; sub?: boolean; more?: boolean; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className={`rounded-[10px] border-[1.5px] px-[11px] py-2 text-[12.5px] font-semibold ${sub ? (sel ? 'border-ink bg-surface text-ink' : 'border-transparent bg-line2 text-sub') : sel ? 'border-ink bg-surface text-ink' : 'border-line bg-surface text-sub'}`}>{children}</button>
+    <button onClick={onClick} className={`rounded-[10px] border-[1.5px] px-[11px] py-2 text-[12.5px] font-semibold ${more ? 'border-dashed border-line bg-surface text-sub' : sub ? (sel ? 'border-ink bg-surface text-ink' : 'border-transparent bg-line2 text-sub') : sel ? 'border-ink bg-surface text-ink' : 'border-line bg-surface text-sub'}`}>{children}</button>
   );
 }

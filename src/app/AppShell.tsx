@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ComponentType } from 'react';
 import { useAppStore, type ScreenId } from '../store/useAppStore';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -36,6 +36,9 @@ export function AppShell() {
   const loaded = useAppStore((s) => s.loaded);
   const loadAll = useAppStore((s) => s.loadAll);
   const screen = useAppStore((s) => s.screen);
+  const canGoBack = useAppStore((s) => s.history.length > 0);
+  const goBack = useAppStore((s) => s.goBack);
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     void loadAll();
@@ -64,7 +67,22 @@ export function AppShell() {
   const Screen = SCREENS[screen];
 
   return (
-    <div className="mx-auto flex h-[100dvh] max-w-[480px] flex-col bg-canvas pt-[env(safe-area-inset-top)]">
+    <div
+      className="mx-auto flex h-[100dvh] max-w-[480px] flex-col bg-canvas pt-[env(safe-area-inset-top)]"
+      onTouchStart={(e) => {
+        const touch = e.touches[0];
+        swipeStart.current = canGoBack && touch.clientX <= 36 ? { x: touch.clientX, y: touch.clientY } : null;
+      }}
+      onTouchEnd={(e) => {
+        const start = swipeStart.current;
+        swipeStart.current = null;
+        const touch = e.changedTouches[0];
+        if (!start || !touch) return;
+        const dx = touch.clientX - start.x;
+        const dy = Math.abs(touch.clientY - start.y);
+        if (dx > 80 && dy < 48) goBack();
+      }}
+    >
       <div
         className="flex-1 overflow-y-auto overflow-x-hidden [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden"
         style={{ paddingBottom: 'var(--kb, 0px)' }}

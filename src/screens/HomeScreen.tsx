@@ -27,7 +27,7 @@ export function HomeScreen() {
       <div className="px-[18px] pb-[120px] pt-1.5">
         {/* 통합 요약 카드 */}
         <div className="mb-4 rounded-2xl bg-surface px-4 py-3.5 shadow-card">
-          <div className="flex items-center justify-between" onClick={() => navigate('stats')}>
+          <div className="flex items-center justify-between" onClick={() => navigate('stats', {}, { preserveHistory: true })}>
             <div>
               <div className="mb-[3px] text-[11px] font-semibold text-sub">{data.selectedMonth.month}월 지출</div>
               <div className="num text-2xl font-extrabold tracking-[-0.02em]">{won(data.totalExpense)}원</div>
@@ -35,7 +35,7 @@ export function HomeScreen() {
             <span className="text-[17px] text-faint">›</span>
           </div>
           <div className="mt-[11px] flex gap-3.5 border-t border-line2 pt-[11px] text-[11.5px] font-semibold text-sub">
-            <span className="inline-flex gap-1.5" onClick={() => navigate('stats')}>
+            <span className="inline-flex gap-1.5" onClick={() => navigate('stats', {}, { preserveHistory: true })}>
               수입 <b className="num font-extrabold text-good">+{manWon(data.totalIncome)}</b>
             </span>
             <span className="inline-flex gap-1.5" onClick={() => navigate('assets')}>
@@ -78,7 +78,7 @@ export function HomeScreen() {
         {/* 이번 달 지출 요약 */}
         <div className="mx-0.5 mb-3.5 mt-[22px] flex items-center justify-between">
           <span className="text-[11px] font-bold uppercase tracking-[0.13em] text-faint">이번 달 지출</span>
-          <span className="text-[12px] font-semibold text-faint" onClick={() => navigate('ledger')}>전체 보기 ›</span>
+          <span className="text-[12px] font-semibold text-faint" onClick={() => navigate('ledger', {}, { preserveHistory: true })}>전체 보기 ›</span>
         </div>
         <ExpenseSummary breakdown={data.breakdown} />
       </div>

@@ -22,9 +22,24 @@ export function Chip({
 }
 
 export function AppHead({ title, right }: { title: string; right?: ReactNode }) {
+  const canGoBack = useAppStore((s) => s.history.length > 0);
+  const goBack = useAppStore((s) => s.goBack);
+
   return (
-    <div className="flex items-baseline justify-between px-[18px] pb-3 pt-[10px]">
-      <h1 className="text-[22px] font-extrabold tracking-[-0.03em]">{title}</h1>
+    <div className="flex items-center justify-between gap-3 px-[18px] pb-3 pt-[10px]">
+      <div className="flex min-w-0 items-center gap-1.5">
+        {canGoBack && (
+          <button
+            type="button"
+            aria-label="이전 화면"
+            onClick={goBack}
+            className="-ml-2 flex h-9 w-9 flex-none items-center justify-center rounded-full text-[24px] font-semibold leading-none text-sub active:bg-line2"
+          >
+            ‹
+          </button>
+        )}
+        <h1 className="truncate text-[22px] font-extrabold tracking-[-0.03em]">{title}</h1>
+      </div>
       {right}
     </div>
   );

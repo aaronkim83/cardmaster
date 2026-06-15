@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, cleanup } from '@testing-library/react';
 import { AppShell } from './AppShell';
 import { useAppStore } from '../store/useAppStore';
 
@@ -22,7 +22,17 @@ describe('AppShell 렌더 스모크', () => {
   it('탭 전환: 통계 화면으로 이동하면 카테고리별 지출이 렌더된다', async () => {
     render(<AppShell />);
     await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
-    useAppStore.getState().navigate('stats');
+    act(() => useAppStore.getState().navigate('stats'));
     await waitFor(() => expect(screen.getByText('카테고리별 지출')).toBeTruthy());
+  });
+
+  it('홈에서 드릴다운으로 들어간 화면은 이전 버튼으로 돌아올 수 있다', async () => {
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+    act(() => useAppStore.getState().navigate('stats', {}, { preserveHistory: true }));
+    await waitFor(() => expect(screen.getByText('카테고리별 지출')).toBeTruthy());
+
+    fireEvent.click(screen.getByLabelText('이전 화면'));
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy());
   });
 });

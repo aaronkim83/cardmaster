@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAccountMap, useCategoryMap } from '../store/lookups';
 import { buildCategoryMap, isExcludedForCard } from '../logic/category';
-import { FieldRow, Toggle } from '../ui/components';
+import { AppHead, FieldRow, Toggle } from '../ui/components';
 import { won } from '../ui/format';
 
 const SOURCE_LABEL: Record<string, string> = { manual: '✍️ 직접 입력', parsed: '📋 문자 인식', recurring: '⟳ 자동이체', import: '📄 엑셀 가져오기' };
@@ -37,10 +37,10 @@ export function EditScreen() {
 
   return (
     <>
-      <div className="flex items-baseline justify-between px-[18px] pb-3 pt-2.5">
-        <h1 className="text-[22px] font-extrabold tracking-[-0.03em]">거래 수정</h1>
-        <span className="rounded-lg bg-warn-bg px-[11px] py-1.5 text-[12px] font-bold text-warn" onClick={async () => { await deleteTransaction(txn.id); goBack(); }}>🗑 삭제</span>
-      </div>
+      <AppHead
+        title="거래 수정"
+        right={<span className="rounded-lg bg-warn-bg px-[11px] py-1.5 text-[12px] font-bold text-warn" onClick={async () => { await deleteTransaction(txn.id); goBack(); }}>🗑 삭제</span>}
+      />
       <div className="px-[18px] pb-[120px]">
         <div className="px-5 pb-3 pt-1.5 text-center">
           <div className="mb-1 text-[11.5px] font-semibold text-sub">금액 · {txn.type === 'income' ? '수입' : txn.type === 'transfer' ? '이체' : '지출'}</div>
