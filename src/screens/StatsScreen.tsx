@@ -1,11 +1,13 @@
 import { useMonthlyData } from '../store/useMonthlyData';
 import { useCategoryMap } from '../store/lookups';
+import { useAppStore } from '../store/useAppStore';
 import { AppHead, MonthNav } from '../ui/components';
 import { won, pct } from '../ui/format';
 
 export function StatsScreen() {
   const data = useMonthlyData();
   const catMap = useCategoryMap();
+  const navigate = useAppStore((s) => s.navigate);
 
   const budgetName = (id: string | null) => (id === null ? '전체 예산' : `${catMap.get(id)?.icon ?? ''} ${catMap.get(id)?.name ?? '예산'}`);
   const maxCat = data.breakdown[0]?.amount ?? 1;
@@ -20,24 +22,30 @@ export function StatsScreen() {
           <Box label="일 평균" value={won(data.dailyAvg.average)} sub={`${data.dailyAvg.days}일 기준`} />
         </div>
 
-        {data.budgets.length > 0 && (
-          <Card title="예산" right={<span className="num text-ink">{won(data.totalExpense)} / {won(data.budgets.find((b) => b.categoryId === null)?.amount ?? 0)}</span>}>
-            {data.budgets.map((b) => (
-              <div key={b.budgetId} className="mb-3.5 last:mb-0">
-                <div className="mb-1.5 flex items-baseline justify-between">
-                  <span className="text-[13px] font-bold">{budgetName(b.categoryId)}</span>
-                  <span className="num text-[11.5px] font-semibold text-sub">
-                    {won(b.spent)} / {won(b.amount)}{' '}
-                    <span className={`text-[10px] font-bold ${b.status === 'over' ? 'text-warn' : b.status === 'near' ? 'text-[#B5852A]' : 'text-sub'}`}>{pct(b.ratio)}{b.status === 'over' ? ' 초과' : ''}</span>
-                  </span>
-                </div>
-                <div className="h-[9px] overflow-hidden rounded-md bg-line2">
-                  <i className={`block h-full rounded-md ${b.status === 'over' ? 'bg-warn' : b.status === 'near' ? 'bg-[#D9A52A]' : 'bg-ink'}`} style={{ width: `${Math.min(b.ratio, 1) * 100}%` }} />
-                </div>
+        <Card
+          title="예산"
+          right={<button onClick={() => navigate('budget', {}, { preserveHistory: true })} className="text-[12px] font-bold text-sub">설정 ›</button>}
+        >
+          {data.budgets.length === 0 && (
+            <button onClick={() => navigate('budget', {}, { preserveHistory: true })} className="w-full py-2 text-center text-[13px] font-semibold text-faint">
+              예산을 등록해 월 지출을 관리하세요.
+            </button>
+          )}
+          {data.budgets.map((b) => (
+            <div key={b.budgetId} className="mb-3.5 last:mb-0">
+              <div className="mb-1.5 flex items-baseline justify-between">
+                <span className="text-[13px] font-bold">{budgetName(b.categoryId)}</span>
+                <span className="num text-[11.5px] font-semibold text-sub">
+                  {won(b.spent)} / {won(b.amount)}{' '}
+                  <span className={`text-[10px] font-bold ${b.status === 'over' ? 'text-warn' : b.status === 'near' ? 'text-[#B5852A]' : 'text-sub'}`}>{pct(b.ratio)}{b.status === 'over' ? ' 초과' : ''}</span>
+                </span>
               </div>
-            ))}
-          </Card>
-        )}
+              <div className="h-[9px] overflow-hidden rounded-md bg-line2">
+                <i className={`block h-full rounded-md ${b.status === 'over' ? 'bg-warn' : b.status === 'near' ? 'bg-[#D9A52A]' : 'bg-ink'}`} style={{ width: `${Math.min(b.ratio, 1) * 100}%` }} />
+              </div>
+            </div>
+          ))}
+        </Card>
 
         <Card title="카테고리별 지출">
           {data.breakdown.length === 0 && <div className="py-2 text-center text-[13px] text-faint">내역 없음</div>}

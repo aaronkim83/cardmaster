@@ -35,4 +35,12 @@ describe('AppShell 렌더 스모크', () => {
     fireEvent.click(screen.getByLabelText('이전 화면'));
     await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy());
   });
+
+  it('예산 설정 화면으로 이동하면 등록된 예산이 렌더된다', async () => {
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+    act(() => useAppStore.getState().navigate('budget'));
+    await waitFor(() => expect(screen.getByText('예산 설정')).toBeTruthy());
+    expect(screen.getByText('등록된 예산')).toBeTruthy();
+  });
 });

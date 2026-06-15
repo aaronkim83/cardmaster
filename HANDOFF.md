@@ -18,13 +18,13 @@
 | 작업 브랜치 | `claude/dev-planning-confirmation-obv035` (이 브랜치에서 계속 작업) |
 | 원격 | `github.com/aaronkim83/cardmaster` (현재 **public**) |
 | 라이브 배포 | https://aaronkim83.github.io/cardmaster/ (PWA, 휴대폰 "홈 화면에 추가"로 설치) |
-| 빌드/테스트 | `npm run build` 통과 · **Vitest 61개 통과** |
+| 빌드/테스트 | `npm run build` 통과 · **Vitest 63개 통과** |
 | 진행도 | MVP **로직 + 14개 화면 + 주요 폼 CRUD + PWA 배포** 완료. 아래 §10 TODO 남음 |
 
 **개발 단계 요약**
 - ✅ 1단계: 기반(Vite+TS+Tailwind+PWA) + Dexie 스키마/타입/2단 카테고리 시드 + 파서 이식 + **logic 8종 순수함수 + 단위테스트**
 - ✅ 2단계: 앱 셸/네비게이션/스토어 CRUD + **14개 화면** + 첫 실행 데모 데이터 + 런타임 스모크 테스트
-- ✅ 폼 채우기: 카테고리·계좌·자동이체 CRUD, JSON 백업/복원, 엑셀(SheetJS) 가져오기
+- ✅ 폼 채우기: 카테고리·예산·계좌·자동이체 CRUD, JSON 백업/복원, 엑셀(SheetJS) 가져오기
 - ✅ PWA: 로컬 Pretendard 폰트, 설치 아이콘(192/512/maskable), GitHub Pages 자동 배포
 - ✅ 모바일 QA 수정: 숫자 입력 강제 0, 키보드에 저장버튼 가림, 스크롤 출렁임, 상태바 세이프에어리어
 
@@ -41,7 +41,7 @@ git checkout claude/dev-planning-confirmation-obv035
 npm install
 
 npm run dev        # 개발 서버 (http://localhost:5173)
-npm test           # Vitest 1회 실행 (61개)
+npm test           # Vitest 1회 실행 (63개)
 npm run test:watch # 테스트 watch
 npm run build      # tsc -b && vite build (타입체크 + 프로덕션 빌드)
 npm run preview    # 빌드 결과 미리보기
@@ -111,7 +111,7 @@ public/       favicon.svg, icon-180/192/512/512-maskable.png
 
 ## 8. 화면 (14개) & 네비게이션
 
-탭: `홈 · 내역 · ＋입력 · 통계 · 더보기`. 더보기 → 자산·카드·자동이체·가져오기·카테고리·백업/복원.
+탭: `홈 · 내역 · ＋입력 · 통계 · 더보기`. 더보기 → 자산·카드·자동이체·가져오기·예산·카테고리·백업/복원.
 
 | 화면 파일 | 내용 |
 |---|---|
@@ -120,6 +120,7 @@ public/       favicon.svg, icon-180/192/512/512-maskable.png
 | InputScreen | 유형 세그·키패드·날짜·결제수단·2단 카테고리 드릴다운·실적 토글 |
 | EditScreen | 거래 수정·실적 오버라이드·삭제 |
 | StatsScreen | 예산 진행·카테고리 비중·월별 추이·일평균·전월대비 |
+| BudgetScreen | 전체·카테고리별 월 예산 추가/편집/삭제 |
 | CardsScreen / CardEditScreen / BenefitEditScreen | 혜택 요약·카드 설정·혜택 편집 |
 | RecurringScreen | 자동이체 목록/추가/편집 + 변동금액 확인 |
 | ImportScreen | SMS 붙여넣기(파서) + 엑셀 업로드(SheetJS) |
@@ -129,7 +130,7 @@ public/       favicon.svg, icon-180/192/512/512-maskable.png
 
 네비게이션은 `useAppStore`의 `screen/params/history` + `navigate()/goBack()`. URL 라우팅 아님(단일 SPA).
 
-**모바일 레이아웃 주의(중요)**: `AppShell` 루트는 `h-[100dvh]` + `pt-[env(safe-area-inset-top)]`. 키보드는 `visualViewport`로 `--kb`(키보드 높이)만 계산 → 스크롤 영역 하단 패딩 + 모달을 `--kb`만큼 위로. **모달은 `createPortal(document.body)`로 렌더**(탭바 위로). 레이아웃 수정 시 이 구조 깨지 않도록 주의.
+**모바일 레이아웃 주의(중요)**: `AppShell` 루트는 `h-[100dvh]` + `pt-[env(safe-area-inset-top)]`. 키보드는 `visualViewport`로 `--keyboard-inset`(키보드 높이)만 계산 → 스크롤 영역 하단 패딩 + 모달을 `--keyboard-inset`만큼 위로. **모달은 `createPortal(document.body)`로 렌더**(탭바 위로). 레이아웃 수정 시 이 구조 깨지 않도록 주의.
 
 ---
 
@@ -144,7 +145,6 @@ public/       favicon.svg, icon-180/192/512/512-maskable.png
 
 ## 10. 알려진 미완성 / 다음 할 일 (TODO)
 
-- [ ] **예산 설정 화면/CRUD** — 현재 통계 화면에 예산 진행률은 표시되지만, 예산을 추가·수정·삭제하는 사용자 화면이 없음.
 - [ ] **데모 데이터 정리/온보딩** — 실제 사용 전 데모 일괄 삭제 버튼 또는 첫 실행 온보딩(계좌/카드 등록) 흐름.
 - [ ] **자동이체 실체화 자동화** — 현재 `logic/recurring.ts`의 `generateDueTransactions`는 구현됐으나 앱 로드시 자동 실행은 미연결(변동분 확인은 수동 버튼). 월 진입 시 도래분 생성 연결 검토.
 - [ ] **엑셀 가져오기 고도화** — 현재 열 자동매핑 기본형. ImportProfile 저장/재사용, MerchantRule 자동분류·중복감지(dedup) 미구현.
@@ -153,7 +153,7 @@ public/       favicon.svg, icon-180/192/512/512-maskable.png
 - [ ] **자산 스냅샷·추이 그래프**, 백업 리마인더, CSV 내보내기.
 - [ ] v2(스코프 아웃, 손대지 말 것): 멀티 디바이스 동기화·로그인·서버·오픈뱅킹·다중통화.
 
-품질 가드: 변경 후 항상 `npm run build`(타입 0) + `npm test`(61개) 녹색 유지. 로직은 테스트 먼저.
+품질 가드: 변경 후 항상 `npm run build`(타입 0) + `npm test`(63개) 녹색 유지. 로직은 테스트 먼저.
 
 ---
 

@@ -14,6 +14,7 @@ import { RecurringScreen } from '../screens/RecurringScreen';
 import { ImportScreen } from '../screens/ImportScreen';
 import { EditScreen } from '../screens/EditScreen';
 import { CategoryScreen } from '../screens/CategoryScreen';
+import { BudgetScreen } from '../screens/BudgetScreen';
 import { TabBar } from './TabBar';
 
 const SCREENS: Record<ScreenId, ComponentType> = {
@@ -30,6 +31,7 @@ const SCREENS: Record<ScreenId, ComponentType> = {
   import: ImportScreen,
   edit: EditScreen,
   category: CategoryScreen,
+  budget: BudgetScreen,
 };
 
 export function AppShell() {
@@ -46,14 +48,14 @@ export function AppShell() {
     if (navigator.storage?.persist) void navigator.storage.persist();
   }, [loadAll]);
 
-  // 키보드 높이만 --kb로 추적(앱 높이는 100dvh 고정 → 스크롤 출렁임 방지).
+  // 키보드 높이만 --keyboard-inset으로 추적(앱 높이는 100dvh 고정 → 스크롤 출렁임 방지).
   // 키보드가 뜨면 폼 스크롤 여유 + 모달 위치 보정에 사용.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
     const apply = () => {
       const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      document.documentElement.style.setProperty('--kb', `${kb}px`);
+      document.documentElement.style.setProperty('--keyboard-inset', `${kb}px`);
     };
     apply();
     vv.addEventListener('resize', apply);
@@ -85,7 +87,7 @@ export function AppShell() {
     >
       <div
         className="flex-1 overflow-y-auto overflow-x-hidden [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden"
-        style={{ paddingBottom: 'var(--kb, 0px)' }}
+        style={{ paddingBottom: 'var(--keyboard-inset, 0px)' }}
       >
         {loaded ? <Screen /> : <div className="p-10 text-center text-sm text-sub">불러오는 중…</div>}
       </div>

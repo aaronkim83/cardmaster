@@ -29,7 +29,8 @@ export type ScreenId =
   | 'recurring'
   | 'import'
   | 'edit'
-  | 'category';
+  | 'category'
+  | 'budget';
 
 export interface NavParams {
   txnId?: string;
@@ -72,6 +73,7 @@ interface AppState {
   deleteBenefit: (id: string) => Promise<void>;
 
   saveBudget: (b: Budget) => Promise<void>;
+  deleteBudget: (id: string) => Promise<void>;
   saveCategory: (c: Category) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   reorderCategories: (ordered: Category[]) => Promise<void>;
@@ -167,6 +169,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   saveBudget: async (b) => {
     await db.budgets.put(b);
+    await reload(set);
+  },
+  deleteBudget: async (id) => {
+    await db.budgets.delete(id);
     await reload(set);
   },
   saveCategory: async (c) => {

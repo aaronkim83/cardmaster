@@ -65,6 +65,7 @@ export function MoreScreen() {
         </div>
 
         <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">설정</div>
+        <Row icon="💸" name="예산 설정" desc="전체·카테고리별 월 예산" onClick={() => navigate('budget')} />
         <Row icon="🏷️" name="카테고리 관리" desc="아이콘·색상·실적 제외 설정" onClick={() => navigate('category')} />
         <Row icon="💾" name="백업 (JSON 내보내기)" desc="전 데이터를 파일로 저장" onClick={backup} />
         <Row icon="♻️" name="복원 (JSON 불러오기)" desc="백업 파일에서 데이터 복구" onClick={() => fileRef.current?.click()} />
