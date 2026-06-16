@@ -18,7 +18,7 @@
 | 작업 브랜치 | `claude/dev-planning-confirmation-obv035` (이 브랜치에서 계속 작업) |
 | 원격 | `github.com/aaronkim83/cardmaster` (현재 **public**) |
 | 라이브 배포 | https://aaronkim83.github.io/cardmaster/ (PWA, 휴대폰 "홈 화면에 추가"로 설치) |
-| 빌드/테스트 | `npm run build` 통과 · **Vitest 72개 통과** |
+| 빌드/테스트 | `npm run build` 통과 · **Vitest 79개 통과** |
 | 진행도 | MVP **로직 + 14개 화면 + 주요 폼 CRUD + PWA 배포** 완료. 아래 §10 TODO 남음 |
 
 **개발 단계 요약**
@@ -41,7 +41,7 @@ git checkout claude/dev-planning-confirmation-obv035
 npm install
 
 npm run dev        # 개발 서버 (http://localhost:5173)
-npm test           # Vitest 1회 실행 (72개)
+npm test           # Vitest 1회 실행 (79개)
 npm run test:watch # 테스트 watch
 npm run build      # tsc -b && vite build (타입체크 + 프로덕션 빌드)
 npm run preview    # 빌드 결과 미리보기
@@ -153,7 +153,7 @@ public/       favicon.svg, icon-180/192/512/512-maskable.png
 - [ ] **자산 스냅샷·추이 그래프**, 백업 리마인더, CSV 내보내기.
 - [ ] v2(스코프 아웃, 손대지 말 것): 멀티 디바이스 동기화·로그인·서버·오픈뱅킹·다중통화.
 
-품질 가드: 변경 후 항상 `npm run build`(타입 0) + `npm test`(72개) 녹색 유지. 로직은 테스트 먼저.
+품질 가드: 변경 후 항상 `npm run build`(타입 0) + `npm test`(79개) 녹색 유지. 로직은 테스트 먼저.
 
 ---
 

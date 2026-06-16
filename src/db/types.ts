@@ -13,6 +13,7 @@ export type AccountType =
   | 'other';
 export type BalanceMode = 'calculated' | 'manual';
 export type CardCycleType = 'prev_month' | 'curr_month';
+export type BenefitValueType = 'rate' | 'fixed';
 
 export interface CardConfig {
   targetAmount: number;
@@ -100,7 +101,9 @@ export interface Benefit {
   type: 'discount' | 'point';
   targetMerchant?: string;
   targetCategoryId?: string;
+  valueType?: BenefitValueType; // undefined는 기존 데이터 호환을 위해 rate로 해석
   rate: number;
+  fixedAmount?: number;
   monthlyLimit?: number;
   limitBasis?: 'benefit_amount' | 'spend_amount';
   requiresPerformance: boolean;

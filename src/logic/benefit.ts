@@ -3,7 +3,7 @@ import { buildCategoryMap, type CategoryMap } from './category';
 import { inMonth, type YearMonth } from './period';
 
 // 혜택 · 절약액 가시화 (3단계) — PRD §4.4, 불변식 #7.
-// 매칭 → requiresPerformance 미충족이면 미적용(예상 별도) → benefitAmount=round(amount*rate)
+// 매칭 → requiresPerformance 미충족이면 미적용(예상 별도) → 혜택액 산정(정률/정액)
 //   → 월 한도 초과분 제외 → 한도 내 실제분만 저장.
 
 /** 거래가 혜택 대상인지 (가맹점 부분일치 또는 카테고리/대분류 일치). */
@@ -41,7 +41,7 @@ export function accrueBenefit(
   txnAmount: number,
   prevUsed: number,
 ): { applied: number; newUsed: number } {
-  const raw = Math.round(txnAmount * benefit.rate);
+  const raw = rawBenefitAmount(benefit, txnAmount);
   if (benefit.monthlyLimit === undefined) {
     const used = benefit.limitBasis === 'spend_amount' ? prevUsed + txnAmount : prevUsed + raw;
     return { applied: raw, newUsed: used };
@@ -49,12 +49,17 @@ export function accrueBenefit(
   if (benefit.limitBasis === 'spend_amount') {
     const remainingSpend = Math.max(benefit.monthlyLimit - prevUsed, 0);
     const eligibleSpend = Math.min(txnAmount, remainingSpend);
-    return { applied: Math.round(eligibleSpend * benefit.rate), newUsed: prevUsed + eligibleSpend };
+    return { applied: eligibleSpend > 0 ? rawBenefitAmount(benefit, eligibleSpend) : 0, newUsed: prevUsed + eligibleSpend };
   }
   // limitBasis: benefit_amount (기본)
   const remaining = Math.max(benefit.monthlyLimit - prevUsed, 0);
   const applied = Math.min(raw, remaining);
   return { applied, newUsed: prevUsed + applied };
+}
+
+function rawBenefitAmount(benefit: Benefit, txnAmount: number): number {
+  if (benefit.valueType === 'fixed') return Math.max(benefit.fixedAmount ?? 0, 0);
+  return Math.round(txnAmount * benefit.rate);
 }
 
 export interface BenefitProgress {

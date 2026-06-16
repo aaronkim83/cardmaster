@@ -3,10 +3,10 @@ import { nanoid } from 'nanoid';
 import { useAppStore } from '../store/useAppStore';
 import { AppHead, Toggle } from '../ui/components';
 import { NumberField } from '../ui/Modal';
-import type { Benefit } from '../db/types';
+import type { Benefit, BenefitValueType } from '../db/types';
 
 function blank(accountId: string): Benefit {
-  return { id: nanoid(), accountId, name: '새 혜택', type: 'discount', rate: 0.1, requiresPerformance: false, isActive: true, limitBasis: 'benefit_amount' };
+  return { id: nanoid(), accountId, name: '새 혜택', type: 'discount', valueType: 'rate', rate: 0.1, requiresPerformance: false, isActive: true, limitBasis: 'benefit_amount' };
 }
 
 export function BenefitEditScreen() {
@@ -20,6 +20,7 @@ export function BenefitEditScreen() {
   const existing = benefits.find((b) => b.id === benefitId);
   const [draft, setDraft] = useState<Benefit>(() => existing ?? blank(accountId ?? ''));
   const [rateText, setRateText] = useState(() => formatPercent(existing?.rate ?? 0.1));
+  const valueType = draft.valueType ?? 'rate';
 
   useEffect(() => {
     const next = existing ?? blank(accountId ?? '');
@@ -29,7 +30,7 @@ export function BenefitEditScreen() {
 
   async function save() {
     if (!draft.name.trim()) return;
-    await saveBenefit({ ...draft, name: draft.name.trim() });
+    await saveBenefit(normalizeBenefitDraft(draft));
     goBack();
   }
 
@@ -53,7 +54,12 @@ export function BenefitEditScreen() {
 
         <div className="mb-3.5 overflow-hidden rounded-[13px] shadow-card">
           <Row k="적용 대상 가맹점" v={<input value={draft.targetMerchant ?? ''} onChange={(e) => setDraft({ ...draft, targetMerchant: e.target.value || undefined })} placeholder="(전체)" className="rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
-          <Row k="비율 (%)" v={<PercentField value={rateText} onChange={(text, rate) => { setRateText(text); setDraft({ ...draft, rate }); }} />} />
+          <Row k="혜택 방식" v={<ValueTypeTabs value={valueType} onChange={(v) => setDraft({ ...draft, valueType: v })} />} />
+          {valueType === 'rate' ? (
+            <Row k="비율 (%)" v={<PercentField value={rateText} onChange={(text, rate) => { setRateText(text); setDraft({ ...draft, rate }); }} />} />
+          ) : (
+            <Row k="혜택액 (원)" v={<NumberField ariaLabel="혜택액 (원)" value={draft.fixedAmount ?? 0} onChange={(n) => setDraft({ ...draft, fixedAmount: n })} className="num w-28 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
+          )}
           <Row k="월 한도 (원)" v={<NumberField value={draft.monthlyLimit ?? 0} onChange={(n) => setDraft({ ...draft, monthlyLimit: n || undefined })} className="num w-28 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} last />
         </div>
 
@@ -65,6 +71,39 @@ export function BenefitEditScreen() {
         <button onClick={save} className="mt-4 w-full rounded-[13px] bg-ink py-3 text-center text-[14.5px] font-bold text-white">저장</button>
       </div>
     </>
+  );
+}
+
+function normalizeBenefitDraft(draft: Benefit): Benefit {
+  const valueType = draft.valueType ?? 'rate';
+  return {
+    ...draft,
+    name: draft.name.trim(),
+    valueType,
+    rate: valueType === 'rate' ? draft.rate : 0,
+    fixedAmount: valueType === 'fixed' && (draft.fixedAmount ?? 0) > 0 ? draft.fixedAmount : undefined,
+    monthlyLimit: draft.monthlyLimit && draft.monthlyLimit > 0 ? draft.monthlyLimit : undefined,
+  };
+}
+
+function ValueTypeTabs({ value, onChange }: { value: BenefitValueType; onChange: (v: BenefitValueType) => void }) {
+  const options: { value: BenefitValueType; label: string }[] = [
+    { value: 'rate', label: '정률' },
+    { value: 'fixed', label: '정액' },
+  ];
+  return (
+    <div className="flex rounded-lg bg-line2 p-0.5">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={`rounded-md px-2.5 py-1 text-[11.5px] font-bold ${value === option.value ? 'bg-surface text-ink shadow-sm' : 'text-sub'}`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
   );
 }
 

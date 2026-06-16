@@ -27,6 +27,19 @@ describe('accrueBenefit — 한도 클리핑', () => {
     const b = makeBenefit({ id: 'b', accountId: 'c1', rate: 0.07 });
     expect(accrueBenefit(b, 40000, 0).applied).toBe(2800);
   });
+
+  it('정액 혜택은 거래금액과 무관하게 고정 금액을 적용한다', () => {
+    const b = makeBenefit({ id: 'b', accountId: 'c1', valueType: 'fixed', fixedAmount: 1500, rate: 0 });
+    expect(accrueBenefit(b, 40000, 0).applied).toBe(1500);
+  });
+
+  it('정액 혜택도 benefit_amount 월 한도에서 초과분을 제외한다', () => {
+    const b = makeBenefit({ id: 'b', accountId: 'c1', valueType: 'fixed', fixedAmount: 3000, rate: 0, monthlyLimit: 5000, limitBasis: 'benefit_amount' });
+    const first = accrueBenefit(b, 10000, 0);
+    const second = accrueBenefit(b, 10000, first.newUsed);
+    expect(first.applied).toBe(3000);
+    expect(second.applied).toBe(2000);
+  });
 });
 
 describe('computeBenefits — 3단계 가시화', () => {

@@ -5,6 +5,7 @@ import { parseCardSms, isMatched, type ParseResult } from '../parser/cardSmsPars
 import { AppHead } from '../ui/components';
 import { won } from '../ui/format';
 import { matchAccountByCardDigits, visibleCardDigits, type CardMatchStatus } from '../logic/cardImportMapping';
+import { suggestExpenseCategory } from '../logic/importClassification';
 
 const SAMPLE = `[Web발신]
 우리(5578)승인
@@ -30,11 +31,15 @@ interface ExcelRow {
   cardDigits?: string;
   accountId?: string;
   accountName?: string;
+  categoryId?: string;
+  categoryName?: string;
+  categoryIcon?: string;
   matchStatus: CardMatchStatus | 'no_card_column';
 }
 
 export function ImportScreen() {
   const accounts = useAppStore((s) => s.accounts);
+  const categories = useAppStore((s) => s.categories);
   const addTransaction = useAppStore((s) => s.addTransaction);
   const navigate = useAppStore((s) => s.navigate);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -44,6 +49,8 @@ export function ImportScreen() {
   const [results, setResults] = useState<ParseResult[] | null>(null);
   const [excel, setExcel] = useState<{ rows: ExcelRow[]; fileName: string; cardColumnName?: string } | null>(null);
   const [excelFallbackAccount, setExcelFallbackAccount] = useState('');
+  const [excelCardMap, setExcelCardMap] = useState<Record<string, string>>({});
+  const [showAllExcelRows, setShowAllExcelRows] = useState(false);
 
   const cardAccounts = accounts.filter((a) => a.type === 'card' && a.isActive);
   const fallbackAccounts = cardAccounts.length > 0 ? cardAccounts : accounts.filter((a) => a.isActive);
@@ -83,35 +90,53 @@ export function ImportScreen() {
       .map((r) => {
         const cardMatch = cardCol ? matchAccountByCardDigits(accounts, r[cardCol]) : null;
         const matchStatus: ExcelRow['matchStatus'] = cardMatch?.status ?? 'no_card_column';
+        const merchant = String(merCol ? r[merCol] : '').trim();
+        const category = suggestExpenseCategory(categories, merchant);
         return {
           date: toISO(r[dateCol]),
-          merchant: String(merCol ? r[merCol] : '').trim(),
+          merchant,
           amount: Math.abs(Number(String(r[amtCol]).replace(/[^\d.-]/g, ''))),
           cardDigits: cardCol ? visibleCardDigits(r[cardCol]) || undefined : undefined,
           accountId: cardMatch?.account?.id,
           accountName: cardMatch?.account?.name,
+          categoryId: category?.categoryId,
+          categoryName: category?.name,
+          categoryIcon: category?.icon,
           matchStatus,
         };
       })
       .filter((r) => r.amount > 0 && r.date);
     setExcel({ rows, fileName: file.name, cardColumnName: cardCol });
     setExcelFallbackAccount(fallbackAccounts[0]?.id ?? '');
+    setExcelCardMap({});
+    setShowAllExcelRows(false);
   }
 
   async function saveExcel() {
     if (!excel) return;
     for (const r of excel.rows) {
-      const accountId = r.accountId ?? excelFallbackAccount;
+      const accountId = resolvedExcelAccountId(r);
       if (!accountId) continue;
-      await addTransaction({ date: r.date, type: 'expense', amount: r.amount, accountId, merchant: r.merchant || undefined, countsForPerformance: null, source: 'import', status: 'confirmed' });
+      await addTransaction({ date: r.date, type: 'expense', amount: r.amount, accountId, categoryId: r.categoryId, merchant: r.merchant || undefined, countsForPerformance: null, source: 'import', status: 'confirmed' });
     }
     navigate('ledger');
   }
 
   const recognized = results?.filter(isMatched).length ?? 0;
-  const excelMatched = excel?.rows.filter((r) => r.accountId).length ?? 0;
+  const excelMatched = excel?.rows.filter((r) => resolvedExcelAccountId(r)).length ?? 0;
   const excelUnmatched = excel ? excel.rows.length - excelMatched : 0;
-  const excelSaveable = excel?.rows.filter((r) => r.accountId || excelFallbackAccount).length ?? 0;
+  const excelSaveable = excel?.rows.filter((r) => resolvedExcelAccountId(r)).length ?? 0;
+  const excelCardGroups = excel ? cardGroupsForRows(excel.rows, accounts) : [];
+  const excelPreviewRows = excel ? (showAllExcelRows ? excel.rows : excel.rows.slice(0, 8)) : [];
+
+  function resolvedExcelAccountId(row: ExcelRow): string | undefined {
+    if (row.cardDigits) return excelCardMap[row.cardDigits] || row.accountId;
+    return row.accountId ?? excelFallbackAccount;
+  }
+
+  function setCardGroupAccount(cardDigits: string, accountId: string) {
+    setExcelCardMap((prev) => ({ ...prev, [cardDigits]: accountId }));
+  }
 
   return (
     <>
@@ -153,12 +178,33 @@ export function ImportScreen() {
                 <div className="mb-3.5 flex items-center gap-1.5 rounded-xl bg-good-bg px-[13px] py-[11px] text-[12.5px] font-semibold text-[#13633a]">✅ {excel.fileName} · <b className="font-extrabold">{excel.rows.length}건</b> 인식</div>
                 <div className="mb-3.5 rounded-xl bg-surface px-[13px] py-[11px] text-[12px] font-semibold leading-relaxed text-sub shadow-card">
                   {excel.cardColumnName ? (
-                    <>카드번호 열 <b className="text-ink">{excel.cardColumnName}</b> · 자동 매칭 <b className="text-good">{excelMatched}건</b>{excelUnmatched > 0 && <> · 확인 필요 <b className="text-warn">{excelUnmatched}건</b></>}</>
+                    <>카드번호 열 <b className="text-ink">{excel.cardColumnName}</b> · 지정 완료 <b className="text-good">{excelMatched}건</b>{excelUnmatched > 0 && <> · 확인 필요 <b className="text-warn">{excelUnmatched}건</b></>}</>
                   ) : (
                     <>카드번호 열을 찾지 못했어요. 아래 결제수단으로 저장합니다.</>
                   )}
                 </div>
-                {excelUnmatched > 0 && (
+                {excelCardGroups.length > 0 && (
+                  <div className="mb-3.5 overflow-hidden rounded-[13px] shadow-card">
+                    <div className="bg-line2 px-[13px] py-[9px] text-[10px] font-bold uppercase tracking-[0.05em] text-faint">카드번호별 결제수단</div>
+                    {excelCardGroups.map((group, i) => (
+                      <div key={group.cardDigits} className={`flex items-center gap-2 bg-surface px-[13px] py-2.5 ${i < excelCardGroups.length - 1 ? 'border-b border-line2' : ''}`}>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[12.5px] font-bold">카드 {group.cardDigits}</div>
+                          <div className="mt-px text-[10.5px] font-semibold text-faint">{group.count}건{group.autoAccountName ? ` · 자동 ${group.autoAccountName}` : ''}</div>
+                        </div>
+                        <select
+                          value={excelCardMap[group.cardDigits] ?? group.autoAccountId ?? ''}
+                          onChange={(e) => setCardGroupAccount(group.cardDigits, e.target.value)}
+                          className="w-40 rounded-[9px] border border-line bg-surface px-2 py-2 text-[12px] font-semibold outline-none"
+                        >
+                          <option value="">선택 필요</option>
+                          {cardAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {excelUnmatched > 0 && excelCardGroups.length === 0 && (
                   <>
                     <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">미매칭 행 저장할 결제수단</div>
                     <select value={excelFallbackAccount} onChange={(e) => setExcelFallbackAccount(e.target.value)} className="mb-3.5 w-full rounded-[10px] border-[1.5px] border-line bg-surface px-3 py-2.5 text-[14px] outline-none">
@@ -168,10 +214,14 @@ export function ImportScreen() {
                 )}
                 <div className="overflow-hidden rounded-[13px] shadow-card">
                   <PreviewHead />
-                  {excel.rows.slice(0, 8).map((r, i) => <PreviewRow key={i} date={r.date.slice(5)} mer={excelRowTitle(r)} amount={r.amount} icon={r.accountId ? '✓' : '⚠'} />)}
-                  {excel.rows.length > 8 && <div className="border-t border-line2 px-[13px] py-2.5 text-center text-[11px] font-semibold text-faint">＋ {excel.rows.length - 8}건 더</div>}
+                  {excelPreviewRows.map((r, i) => <PreviewRow key={i} date={r.date.slice(5)} mer={excelRowTitle(r, resolvedExcelAccountId(r), accounts)} sub={excelRowSub(r)} amount={r.amount} icon={resolvedExcelAccountId(r) ? '✓' : '⚠'} />)}
+                  {excel.rows.length > 8 && (
+                    <button type="button" onClick={() => setShowAllExcelRows((v) => !v)} className="w-full border-t border-line2 px-[13px] py-2.5 text-center text-[11px] font-semibold text-faint">
+                      {showAllExcelRows ? '접기' : `＋ ${excel.rows.length - 8}건 더`}
+                    </button>
+                  )}
                 </div>
-                <SaveBtn onClick={saveExcel} disabled={excelSaveable === 0}>{excelSaveable}건 모두 저장</SaveBtn>
+                <SaveBtn onClick={saveExcel} disabled={excelSaveable !== excel.rows.length}>{excelSaveable === excel.rows.length ? `${excelSaveable}건 모두 저장` : `${excel.rows.length - excelSaveable}건 매핑 필요`}</SaveBtn>
               </>
             )}
           </>
@@ -205,11 +255,39 @@ function findCardColumn(headers: string[], usedHeaders: string[]): string | unde
   return undefined;
 }
 
-function excelRowTitle(row: ExcelRow): string {
+interface ExcelCardGroup {
+  cardDigits: string;
+  count: number;
+  autoAccountId?: string;
+  autoAccountName?: string;
+}
+
+function cardGroupsForRows(rows: ExcelRow[], accounts: { id: string; name: string }[]): ExcelCardGroup[] {
+  const accountName = new Map(accounts.map((account) => [account.id, account.name]));
+  const groups = new Map<string, ExcelCardGroup>();
+  for (const row of rows) {
+    if (!row.cardDigits) continue;
+    const group = groups.get(row.cardDigits) ?? { cardDigits: row.cardDigits, count: 0 };
+    group.count += 1;
+    if (row.accountId && !group.autoAccountId) {
+      group.autoAccountId = row.accountId;
+      group.autoAccountName = accountName.get(row.accountId);
+    }
+    groups.set(row.cardDigits, group);
+  }
+  return [...groups.values()].sort((a, b) => a.cardDigits.localeCompare(b.cardDigits));
+}
+
+function excelRowTitle(row: ExcelRow, accountId: string | undefined, accounts: { id: string; name: string }[]): string {
   const merchant = row.merchant || '—';
-  if (row.accountName) return `${merchant} · ${row.accountName}`;
+  const accountName = accountId ? accounts.find((account) => account.id === accountId)?.name : undefined;
+  if (accountName) return `${merchant} · ${accountName}`;
   if (row.cardDigits) return `${merchant} · 카드 ${row.cardDigits} 미매칭`;
   return merchant;
+}
+
+function excelRowSub(row: ExcelRow): string | undefined {
+  return row.categoryName ? `${row.categoryIcon ?? ''} ${row.categoryName}`.trim() : undefined;
 }
 
 function Tab({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -219,12 +297,17 @@ function Recognized({ n, extra }: { n: number; extra: number }) {
   return <div className="mt-3.5 flex items-center gap-1.5 rounded-xl bg-good-bg px-[13px] py-[11px] text-[12.5px] font-semibold text-[#13633a]">✅ <b className="font-extrabold">{n}건</b> 인식{extra > 0 ? ` · 미인식 ${extra}건` : ''}</div>;
 }
 function PreviewHead() {
-  return <div className="flex bg-line2 px-[13px] py-[9px] text-[10px] font-bold uppercase tracking-[0.05em] text-faint"><span className="w-[46px]">날짜</span><span className="flex-1">가맹점</span><span className="w-16 text-right">금액</span><span className="w-[26px]" /></div>;
+  return <div className="flex bg-line2 px-[13px] py-[9px] text-[10px] font-bold uppercase tracking-[0.05em] text-faint"><span className="w-[46px]">날짜</span><span className="flex-1">가맹점 · 분류</span><span className="w-16 text-right">금액</span><span className="w-[26px]" /></div>;
 }
-function PreviewRow({ date, mer, amount, icon }: { date: string; mer: string; amount: number; icon: string }) {
+function PreviewRow({ date, mer, sub, amount, icon }: { date: string; mer: string; sub?: string; amount: number; icon: string }) {
   return (
     <div className="flex items-center border-t border-line2 px-[13px] py-2.5 text-[12px] font-semibold">
-      <span className="num w-[46px] text-sub">{date}</span><span className="flex-1 truncate">{mer}</span><span className="num w-16 text-right font-bold">{won(amount)}</span><span className="w-[26px] text-right">{icon}</span>
+      <span className="num w-[46px] text-sub">{date}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{mer}</span>
+        {sub && <span className="mt-px block truncate text-[10.5px] font-semibold text-faint">{sub}</span>}
+      </span>
+      <span className="num w-16 text-right font-bold">{won(amount)}</span><span className="w-[26px] text-right">{icon}</span>
     </div>
   );
 }

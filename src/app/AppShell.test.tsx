@@ -102,4 +102,22 @@ describe('AppShell 렌더 스모크', () => {
       expect(benefit?.rate).toBeCloseTo(0.007);
     });
   });
+
+  it('혜택 설정에서 정액 혜택을 저장할 수 있다', async () => {
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+
+    act(() => useAppStore.getState().navigate('benefit', { benefitId: 'ben-mpoint', accountId: 'card-hyundai' }, { preserveHistory: true }));
+    await waitFor(() => expect(screen.getByText('혜택 방식')).toBeTruthy());
+
+    fireEvent.click(screen.getByText('정액'));
+    fireEvent.change(screen.getByLabelText('혜택액 (원)'), { target: { value: '1500' } });
+    fireEvent.click(screen.getByText('저장'));
+
+    await waitFor(() => {
+      const benefit = useAppStore.getState().benefits.find((b) => b.id === 'ben-mpoint');
+      expect(benefit?.valueType).toBe('fixed');
+      expect(benefit?.fixedAmount).toBe(1500);
+    });
+  });
 });
