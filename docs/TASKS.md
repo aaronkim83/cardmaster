@@ -11,7 +11,7 @@
 | 항목 | 상태 |
 |---|---|
 | 빌드 | ✅ `npm run build` 타입에러 0 |
-| 테스트 | ✅ Vitest **101개 통과** (17 파일) |
+| 테스트 | ✅ Vitest **103개 통과** (17 파일) |
 | 배포 | ✅ GitHub Pages 자동 (브랜치 push 시) · https://aaronkim83.github.io/cardmaster/ |
 | 런타임 | ✅ 주요 화면 콘솔 에러 0 (헤드리스 검증) |
 | 코드 품질 | 양호 — 로직은 `src/logic/*` 순수함수 + 테스트, SSOT/불변식 유지, 변경은 가산적 |
@@ -110,7 +110,7 @@
 
 ### 🟢 P3 — 품질/마감
 
-#### T10. 거래 편집 필드 실제 수정 + 접근성 스윕
+#### T10. 거래 편집 필드 실제 수정 + 접근성 스윕 ✅ 완료
 - **목표**: `EditScreen`에서 금액·결제수단·카테고리·가맹점·메모를 실제 수정 가능하게(현재 일부 표시 위주). 적용 혜택/실적 재계산 반영. aria-label·탭 순서 점검.
 - **관련**: `EditScreen.tsx`, `InputScreen.tsx`(공용화 검토), store `updateTransaction`.
 - **AC**: 편집 후 저장 시 내역/집계 즉시 반영, pending↔confirmed 전환 가능.

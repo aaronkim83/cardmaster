@@ -127,9 +127,12 @@ export function SegTabs<T extends string>({
   );
 }
 
-export function Toggle({ on, onChange }: { on: boolean; onChange?: (v: boolean) => void }) {
+export function Toggle({ on, onChange, ariaLabel }: { on: boolean; onChange?: (v: boolean) => void; ariaLabel?: string }) {
   return (
     <button
+      role="switch"
+      aria-checked={on}
+      aria-label={ariaLabel}
       onClick={() => onChange?.(!on)}
       className={`relative h-6 w-[42px] flex-none rounded-full transition-colors ${on ? 'bg-good' : 'bg-line'}`}
     >

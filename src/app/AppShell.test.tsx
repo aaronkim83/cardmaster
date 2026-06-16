@@ -219,4 +219,44 @@ describe('AppShell 렌더 스모크', () => {
     expect(reordered.find((a) => a.id === assets[1].id)?.sortOrder).toBe(0);
     expect(reordered.find((a) => a.id === assets[0].id)?.sortOrder).toBe(1);
   });
+
+  it('거래 수정에서 가맹점·금액을 저장한다', async () => {
+    await act(async () => { await useAppStore.getState().loadDemoData(); });
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+    const target = useAppStore.getState().transactions.find((t) => t.merchant === '이마트');
+    expect(target).toBeTruthy();
+
+    act(() => useAppStore.getState().navigate('edit', { txnId: target!.id }, { preserveHistory: true }));
+    await waitFor(() => expect(screen.getByLabelText('가맹점')).toHaveProperty('value', '이마트'));
+
+    fireEvent.change(screen.getByLabelText('가맹점'), { target: { value: '이마트 성수점' } });
+    fireEvent.change(screen.getByLabelText('금액'), { target: { value: '61000' } });
+    fireEvent.click(screen.getByText('저장'));
+
+    await waitFor(() => {
+      const t = useAppStore.getState().transactions.find((x) => x.id === target!.id);
+      expect(t?.merchant).toBe('이마트 성수점');
+      expect(t?.amount).toBe(61000);
+    });
+  });
+
+  it('거래를 대기(pending)로 전환해 저장한다', async () => {
+    await act(async () => { await useAppStore.getState().loadDemoData(); });
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+    const target = useAppStore.getState().transactions.find((t) => t.merchant === '쿠팡' && t.status === 'confirmed');
+    expect(target).toBeTruthy();
+
+    act(() => useAppStore.getState().navigate('edit', { txnId: target!.id }, { preserveHistory: true }));
+    await waitFor(() => expect(screen.getByLabelText('확정 거래')).toBeTruthy());
+
+    fireEvent.click(screen.getByLabelText('확정 거래')); // confirmed → pending
+    fireEvent.click(screen.getByText('저장'));
+
+    await waitFor(() => {
+      const t = useAppStore.getState().transactions.find((x) => x.id === target!.id);
+      expect(t?.status).toBe('pending');
+    });
+  });
 });
