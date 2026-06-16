@@ -101,7 +101,7 @@ function PerfCard({ p, card }: { p: CardForecast; card: Account }) {
   return (
     <div className="mb-[9px] rounded-[14px] bg-surface px-3.5 py-[13px] shadow-card" onClick={() => navigate('cardedit', { accountId: card.id })}>
       <div className="mb-[9px] flex items-center gap-2.5">
-        <Chip color={card.color} size={28}>{card.icon}</Chip>
+        <Chip color={card.color} imageSrc={card.iconImage} size={28}>{card.icon}</Chip>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13.5px] font-bold">{card.name}</div>
           <div className="mt-px text-[10.5px] font-semibold text-sub">
@@ -139,7 +139,7 @@ function AchievedRow({ p, card }: { p: CardForecast; card: Account }) {
   return (
     <div className="relative mb-2 flex items-center gap-3 rounded-[13px] bg-surface px-3.5 py-3 shadow-card" onClick={() => navigate('cardedit', { accountId: card.id })}>
       <span className="absolute left-0 top-[9px] bottom-[9px] w-[3px] rounded-r bg-good" />
-      <Chip color={card.color} size={28}>{card.icon}</Chip>
+      <Chip color={card.color} imageSrc={card.iconImage} size={28}>{card.icon}</Chip>
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13.5px] font-bold">{card.name}</div>
         <div className="my-1.5 h-[5px] overflow-hidden rounded-md bg-line2"><i className="block h-full rounded-md bg-good" style={{ width: '100%' }} /></div>

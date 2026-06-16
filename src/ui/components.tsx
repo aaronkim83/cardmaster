@@ -4,19 +4,21 @@ import { monthLabel } from './format';
 
 export function Chip({
   color,
+  imageSrc,
   children,
   size = 28,
 }: {
   color?: string;
+  imageSrc?: string;
   children: ReactNode;
   size?: number;
 }) {
   return (
     <span
-      className="flex flex-none items-center justify-center rounded-lg font-extrabold text-white"
+      className="flex flex-none items-center justify-center overflow-hidden rounded-lg font-extrabold text-white"
       style={{ background: color ?? 'var(--ink)', width: size, height: size, fontSize: size * 0.4 }}
     >
-      {children}
+      {imageSrc ? <img src={imageSrc} alt="" className="h-full w-full object-cover" /> : children}
     </span>
   );
 }

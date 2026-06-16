@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 import { useAppStore } from '../store/useAppStore';
 import { useMonthlyData } from '../store/useMonthlyData';
 import { accountBalance } from '../logic/balance';
-import { AppHead, AddButton, MonthNav } from '../ui/components';
+import { AppHead, AddButton, Chip, MonthNav } from '../ui/components';
 import { Modal, Labeled, TextInput, NumberField, PrimaryButton, ChoiceRow } from '../ui/Modal';
 import { won } from '../ui/format';
 import type { Account, AccountType } from '../db/types';
@@ -56,14 +56,14 @@ function blank(): Account {
 
 function Row({ a, amount, onClick }: { a: Account; amount: number; onClick: () => void }) {
   return (
-    <div onClick={onClick} className="mb-2 flex items-center gap-3 rounded-[13px] bg-surface px-[15px] py-[13px] shadow-card">
-      <span className="flex h-8 w-8 flex-none items-center justify-center rounded-[9px] text-[13px] font-extrabold text-white" style={{ background: a.color ?? 'var(--sub)' }}>{a.icon ?? '·'}</span>
+    <button type="button" onClick={onClick} className="mb-2 flex w-full items-center gap-3 rounded-[13px] bg-surface px-[15px] py-[13px] text-left shadow-card">
+      <Chip color={a.color} imageSrc={a.iconImage} size={32}>{a.icon ?? '·'}</Chip>
       <div>
         <div className="text-[13.5px] font-semibold">{a.name}</div>
         <div className="mt-px text-[11px] font-semibold text-faint">{TYPE_LABEL[a.type] ?? a.type}{a.balanceMode === 'manual' && <span className="ml-1.5 rounded-[5px] border border-line px-1.5 py-px text-[9px] font-bold">수동</span>}</div>
       </div>
       <span className={`num ml-auto text-[14.5px] font-bold ${amount < 0 ? 'text-warn' : ''}`}>{amount < 0 ? '−' : ''}{won(Math.abs(amount))}원</span>
-    </div>
+    </button>
   );
 }
 
@@ -80,9 +80,9 @@ function AccountForm({ account, onClose, onSave, onDelete }: { account: Account;
       <Labeled label="종류"><ChoiceRow options={ASSET_TYPES} value={d.type} onChange={(v) => setD({ ...d, type: v })} /></Labeled>
       <Labeled label="잔액 방식"><ChoiceRow options={[{ value: 'calculated', label: '거래로 계산' }, { value: 'manual', label: '수동 입력' }]} value={d.balanceMode} onChange={(v) => setD({ ...d, balanceMode: v })} /></Labeled>
       {d.balanceMode === 'calculated' ? (
-        <Labeled label="시작 잔액 (원)"><NumberField value={d.openingBalance} onChange={(n) => setD({ ...d, openingBalance: n })} /></Labeled>
+        <BalanceLabeled label="시작 잔액 (원)" value={d.openingBalance} onChange={(n) => setD({ ...d, openingBalance: n })} />
       ) : (
-        <Labeled label="현재 잔액 (원)"><NumberField value={d.manualBalance ?? 0} onChange={(n) => setD({ ...d, manualBalance: n })} /></Labeled>
+        <BalanceLabeled label="현재 잔액 (원)" value={d.manualBalance ?? 0} onChange={(n) => setD({ ...d, manualBalance: n })} />
       )}
       <div className="flex gap-2.5">
         <Labeled label="색상"><input type="color" value={d.color ?? '#3A7D44'} onChange={(e) => setD({ ...d, color: e.target.value })} className="h-11 w-16 rounded-[10px] border-[1.5px] border-line bg-surface" /></Labeled>
@@ -90,5 +90,38 @@ function AccountForm({ account, onClose, onSave, onDelete }: { account: Account;
       <PrimaryButton onClick={() => d.name.trim() && onSave(d)}>저장</PrimaryButton>
       {!isNew && <button onClick={() => onDelete(d.id)} className="mt-2 w-full rounded-[13px] bg-warn-bg py-3 text-center text-[13px] font-bold text-warn">삭제</button>}
     </Modal>
+  );
+}
+
+function BalanceLabeled({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="mb-3">
+      <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">{label}</div>
+      <BalanceField label={label} value={value} onChange={onChange} />
+    </div>
+  );
+}
+
+function BalanceField({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex gap-2">
+      <button
+        type="button"
+        aria-label="잔액 부호 전환"
+        onClick={() => value !== 0 && onChange(-value)}
+        className={`h-11 w-12 rounded-[10px] border-[1.5px] text-[18px] font-extrabold ${
+          value < 0 ? 'border-warn bg-warn-bg text-warn' : 'border-line bg-surface text-sub'
+        }`}
+      >
+        {value < 0 ? '−' : '+'}
+      </button>
+      <NumberField
+        allowNegative
+        ariaLabel={label}
+        value={value}
+        onChange={onChange}
+        className="num h-11 min-w-0 flex-1 rounded-[10px] border-[1.5px] border-line bg-surface px-3 py-2.5 text-right text-[14px] font-bold outline-none focus:border-ink"
+      />
+    </div>
   );
 }

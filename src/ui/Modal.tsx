@@ -41,21 +41,28 @@ export function NumberField({
   onChange,
   placeholder = '0',
   className,
+  allowNegative = false,
+  ariaLabel,
 }: {
   value: number;
   onChange: (n: number) => void;
   placeholder?: string;
   className?: string;
+  allowNegative?: boolean;
+  ariaLabel?: string;
 }) {
   return (
     <input
-      inputMode="numeric"
-      pattern="[0-9]*"
+      aria-label={ariaLabel}
+      inputMode={allowNegative ? 'text' : 'numeric'}
+      pattern={allowNegative ? '-?[0-9]*' : '[0-9]*'}
       value={value === 0 ? '' : String(value)}
       placeholder={placeholder}
       onChange={(e) => {
-        const digits = e.target.value.replace(/[^\d]/g, '');
-        onChange(digits === '' ? 0 : Number(digits));
+        const raw = e.target.value;
+        const digits = raw.replace(/[^\d]/g, '');
+        const sign = allowNegative && /^\s*[-−]/.test(raw) ? -1 : 1;
+        onChange(digits === '' ? 0 : sign * Number(digits));
       }}
       className={className ?? 'w-full rounded-[10px] border-[1.5px] border-line bg-surface px-3 py-2.5 text-[14px] outline-none focus:border-ink'}
     />

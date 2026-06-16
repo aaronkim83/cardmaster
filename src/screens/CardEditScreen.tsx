@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { useAppStore } from '../store/useAppStore';
 import { useMonthlyData } from '../store/useMonthlyData';
@@ -32,7 +32,6 @@ export function CardEditScreen() {
   const saveAccount = useAppStore((s) => s.saveAccount);
   const deleteAccount = useAppStore((s) => s.deleteAccount);
   const navigate = useAppStore((s) => s.navigate);
-  const goBack = useAppStore((s) => s.goBack);
   const data = useMonthlyData();
 
   const existing = accounts.find((a) => a.id === accountId);
@@ -40,12 +39,19 @@ export function CardEditScreen() {
   const cfg = draft.card!;
   const setCfg = (patch: Partial<CardConfig>) => setDraft((d) => ({ ...d, card: { ...d.card!, ...patch } }));
 
+  useEffect(() => {
+    setDraft(existing ?? blankCard());
+  }, [accountId]);
+
   const cardBenefits = benefits.filter((b) => b.accountId === draft.id);
   const monthBenefit = data.benefits.byCard.get(draft.id) ?? 0;
 
   async function save() {
-    await saveAccount(draft);
-    goBack();
+    if (!draft.name.trim()) return;
+    const next = normalizeCardDraft(draft);
+    setDraft(next);
+    await saveAccount(next);
+    navigate('cards');
   }
 
   return (
@@ -56,8 +62,27 @@ export function CardEditScreen() {
       />
       <div className="px-[18px] pb-[120px]">
         <div className="mb-4 flex items-center gap-[11px]">
-          <Chip color={draft.color} size={36}>{draft.icon}</Chip>
-          <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="rounded-lg bg-surface px-2 py-1 text-base font-bold shadow-card outline-none" />
+          <Chip color={draft.color} imageSrc={draft.iconImage} size={36}>{draft.icon}</Chip>
+          <input aria-label="카드 이름" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="rounded-lg bg-surface px-2 py-1 text-base font-bold shadow-card outline-none" />
+        </div>
+
+        <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">표시</div>
+        <div className="mb-3.5 overflow-hidden rounded-[13px] shadow-card">
+          <Field k="아이콘/이니셜" v={<input aria-label="카드 아이콘" value={draft.icon ?? ''} onChange={(e) => setDraft({ ...draft, icon: e.target.value.slice(0, 4), iconImage: undefined })} className="w-24 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
+          <Field k="색상" v={<input aria-label="카드 색상" type="color" value={draft.color ?? '#1A1916'} onChange={(e) => setDraft({ ...draft, color: e.target.value })} className="h-8 w-16 rounded-md border border-line bg-surface" />} />
+          <Field
+            k="이미지"
+            last
+            v={
+              <div className="flex items-center gap-2">
+                {draft.iconImage && <button onClick={() => setDraft({ ...draft, iconImage: undefined })} className="rounded-md bg-line2 px-2 py-1 text-[11px] font-bold text-sub">제거</button>}
+                <label className="rounded-md bg-line2 px-2 py-1 text-[11px] font-bold text-sub">
+                  선택
+                  <input aria-label="카드 이미지" type="file" accept="image/*" className="hidden" onChange={(e) => void loadIconImage(e.currentTarget.files?.[0], (iconImage) => setDraft((d) => ({ ...d, iconImage })))} />
+                </label>
+              </div>
+            }
+          />
         </div>
 
         <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">실적 설정</div>
@@ -96,6 +121,37 @@ export function CardEditScreen() {
   );
 }
 
+function loadIconImage(file: File | undefined, onLoad: (dataUrl: string) => void): Promise<void> {
+  if (!file) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') onLoad(reader.result);
+      resolve();
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function normalizeCardDraft(account: Account): Account {
+  const card = account.card!;
+  const settlementDay = card.settlementDay && card.settlementDay > 0
+    ? Math.min(Math.max(card.settlementDay, 1), 31)
+    : undefined;
+  return {
+    ...account,
+    name: account.name.trim(),
+    icon: account.icon?.trim() || account.name.trim().slice(0, 1),
+    card: {
+      ...card,
+      targetAmount: Math.max(card.targetAmount, 0),
+      minPerTxn: card.minPerTxn && card.minPerTxn > 0 ? card.minPerTxn : undefined,
+      settlementDay,
+    },
+  };
+}
+
 function Field({ k, v, last }: { k: string; v: React.ReactNode; last?: boolean }) {
   return (
     <div className={`flex items-center justify-between bg-surface px-[15px] py-3.5 ${last ? '' : 'border-b border-line2'}`}>
@@ -105,6 +161,6 @@ function Field({ k, v, last }: { k: string; v: React.ReactNode; last?: boolean }
 }
 function NumField({ k, value, onChange, last }: { k: string; value: number; onChange: (n: number) => void; last?: boolean }) {
   return (
-    <Field k={k} last={last} v={<NumberField value={value} onChange={onChange} className="num w-32 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
+    <Field k={k} last={last} v={<NumberField ariaLabel={k} value={value} onChange={onChange} className="num w-32 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
   );
 }

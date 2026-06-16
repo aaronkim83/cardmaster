@@ -38,6 +38,7 @@ export interface Account {
   lastUsedAt?: number;
   color?: string;
   icon?: string;
+  iconImage?: string; // 로컬 data URL. 있으면 텍스트 icon보다 우선 표시.
   isActive: boolean;
   sortOrder: number;
   createdAt: number;

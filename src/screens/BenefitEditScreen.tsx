@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { useAppStore } from '../store/useAppStore';
 import { AppHead, Toggle } from '../ui/components';
@@ -19,6 +19,19 @@ export function BenefitEditScreen() {
 
   const existing = benefits.find((b) => b.id === benefitId);
   const [draft, setDraft] = useState<Benefit>(() => existing ?? blank(accountId ?? ''));
+  const [rateText, setRateText] = useState(() => formatPercent(existing?.rate ?? 0.1));
+
+  useEffect(() => {
+    const next = existing ?? blank(accountId ?? '');
+    setDraft(next);
+    setRateText(formatPercent(next.rate));
+  }, [benefitId, accountId]);
+
+  async function save() {
+    if (!draft.name.trim()) return;
+    await saveBenefit({ ...draft, name: draft.name.trim() });
+    goBack();
+  }
 
   return (
     <>
@@ -28,7 +41,7 @@ export function BenefitEditScreen() {
       />
       <div className="px-[18px] pb-[120px]">
         <div className="mb-3.5 overflow-hidden rounded-[13px] shadow-card">
-          <Row k="혜택 이름" v={<input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} last />
+          <Row k="혜택 이름" v={<input aria-label="혜택 이름" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} last />
         </div>
 
         <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">유형</div>
@@ -40,7 +53,7 @@ export function BenefitEditScreen() {
 
         <div className="mb-3.5 overflow-hidden rounded-[13px] shadow-card">
           <Row k="적용 대상 가맹점" v={<input value={draft.targetMerchant ?? ''} onChange={(e) => setDraft({ ...draft, targetMerchant: e.target.value || undefined })} placeholder="(전체)" className="rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
-          <Row k="비율 (%)" v={<NumberField value={Math.round(draft.rate * 100)} onChange={(n) => setDraft({ ...draft, rate: n / 100 })} className="num w-20 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} />
+          <Row k="비율 (%)" v={<PercentField value={rateText} onChange={(text, rate) => { setRateText(text); setDraft({ ...draft, rate }); }} />} />
           <Row k="월 한도 (원)" v={<NumberField value={draft.monthlyLimit ?? 0} onChange={(n) => setDraft({ ...draft, monthlyLimit: n || undefined })} className="num w-28 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none" />} last />
         </div>
 
@@ -49,10 +62,45 @@ export function BenefitEditScreen() {
           <Row k="실적 충족 시에만 적용" v={<Toggle on={draft.requiresPerformance} onChange={(v) => setDraft({ ...draft, requiresPerformance: v })} />} last />
         </div>
 
-        <button onClick={async () => { await saveBenefit(draft); goBack(); }} className="mt-4 w-full rounded-[13px] bg-ink py-3 text-center text-[14.5px] font-bold text-white">저장</button>
+        <button onClick={save} className="mt-4 w-full rounded-[13px] bg-ink py-3 text-center text-[14.5px] font-bold text-white">저장</button>
       </div>
     </>
   );
+}
+
+function PercentField({ value, onChange }: { value: string; onChange: (text: string, rate: number) => void }) {
+  return (
+    <input
+      aria-label="비율 (%)"
+      inputMode="decimal"
+      value={value}
+      onChange={(e) => {
+        const text = normalizePercentInput(e.target.value);
+        onChange(text, percentTextToRate(text));
+      }}
+      onBlur={(e) => {
+        const rate = percentTextToRate(e.target.value);
+        onChange(formatPercent(rate), rate);
+      }}
+      className="num w-20 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none"
+    />
+  );
+}
+
+function normalizePercentInput(raw: string): string {
+  const normalized = raw.replace(',', '.').replace(/[^\d.]/g, '');
+  const [first, ...rest] = normalized.split('.');
+  return rest.length === 0 ? first : `${first}.${rest.join('')}`;
+}
+
+function percentTextToRate(text: string): number {
+  const percent = Number(text || 0);
+  return Number.isFinite(percent) ? percent / 100 : 0;
+}
+
+function formatPercent(rate: number): string {
+  if (!Number.isFinite(rate)) return '0';
+  return String(Math.round(rate * 10000) / 100).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
 }
 
 function Row({ k, v, last }: { k: string; v: React.ReactNode; last?: boolean }) {

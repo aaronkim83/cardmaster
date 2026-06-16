@@ -48,7 +48,7 @@ function CardItem({ card, benefitTotal, met, hasBenefits, onClick }: { card: Acc
   return (
     <div onClick={onClick} className="mb-[11px] rounded-2xl bg-surface p-[15px] shadow-card" style={{ opacity: c?.trackPerformance ? 1 : 0.72 }}>
       <div className="mb-3 flex items-center gap-2.5">
-        <Chip color={card.color} size={28}>{card.icon}</Chip>
+        <Chip color={card.color} imageSrc={card.iconImage} size={28}>{card.icon}</Chip>
         <div className="min-w-0 flex-1">
           <div className="text-[14.5px] font-bold">{card.name} {card.isPinned && <span className="text-[10px] text-faint">📌</span>}</div>
           <div className="mt-px text-[11px] font-semibold text-sub">

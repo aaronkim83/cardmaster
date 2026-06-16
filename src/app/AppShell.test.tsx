@@ -43,4 +43,61 @@ describe('AppShell 렌더 스모크', () => {
     await waitFor(() => expect(screen.getByText('예산 설정')).toBeTruthy());
     expect(screen.getByText('등록된 예산')).toBeTruthy();
   });
+
+  it('계좌 편집에서 마이너스 잔액을 저장할 수 있다', async () => {
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+    act(() => useAppStore.getState().navigate('assets'));
+    fireEvent.click(await screen.findByRole('button', { name: /주거래 통장/ }));
+
+    fireEvent.change(screen.getByLabelText('시작 잔액 (원)'), { target: { value: '-500000' } });
+    fireEvent.click(screen.getByText('저장'));
+
+    await waitFor(() => {
+      const account = useAppStore.getState().accounts.find((a) => a.id === 'acc-bank');
+      expect(account?.openingBalance).toBe(-500000);
+    });
+  });
+
+  it('카드 설정은 카드 전환 후 이름과 결제일을 저장한다', async () => {
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+    const samsungName = useAppStore.getState().accounts.find((a) => a.id === 'card-samsung')?.name;
+    const hyundaiName = useAppStore.getState().accounts.find((a) => a.id === 'card-hyundai')?.name;
+
+    act(() => useAppStore.getState().navigate('cardedit', { accountId: 'card-samsung' }, { preserveHistory: true }));
+    await waitFor(() => expect(screen.getByLabelText('카드 이름')).toHaveProperty('value', samsungName));
+
+    act(() => useAppStore.getState().navigate('cardedit', { accountId: 'card-hyundai' }, { preserveHistory: true }));
+    await waitFor(() => expect(screen.getByLabelText('카드 이름')).toHaveProperty('value', hyundaiName));
+
+    const nextName = `${hyundaiName} 테스트`;
+    fireEvent.change(screen.getByLabelText('카드 이름'), { target: { value: nextName } });
+    fireEvent.change(screen.getByLabelText('카드 아이콘'), { target: { value: 'HM' } });
+    fireEvent.change(screen.getByLabelText('결제일'), { target: { value: '17' } });
+    fireEvent.click(screen.getByText('저장'));
+
+    await waitFor(() => {
+      const card = useAppStore.getState().accounts.find((a) => a.id === 'card-hyundai');
+      expect(card?.name).toBe(nextName);
+      expect(card?.icon).toBe('HM');
+      expect(card?.card?.settlementDay).toBe(17);
+    });
+  });
+
+  it('혜택 설정에서 소수점 비율을 저장할 수 있다', async () => {
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+
+    act(() => useAppStore.getState().navigate('benefit', { benefitId: 'ben-mpoint', accountId: 'card-hyundai' }, { preserveHistory: true }));
+    await waitFor(() => expect(screen.getByLabelText('비율 (%)')).toHaveProperty('value', '5'));
+
+    fireEvent.change(screen.getByLabelText('비율 (%)'), { target: { value: '0.7' } });
+    fireEvent.click(screen.getByText('저장'));
+
+    await waitFor(() => {
+      const benefit = useAppStore.getState().benefits.find((b) => b.id === 'ben-mpoint');
+      expect(benefit?.rate).toBeCloseTo(0.007);
+    });
+  });
 });
