@@ -40,6 +40,11 @@ export function daysInMonth(ym: YearMonth): number {
   return dayjs(`${monthKey(ym)}-01`).daysInMonth();
 }
 
+/** 그 달 마지막 날 'YYYY-MM-DD' (as-of 집계 경계용). */
+export function endOfMonth(ym: YearMonth): string {
+  return `${monthKey(ym)}-${String(daysInMonth(ym)).padStart(2, '0')}`;
+}
+
 /** 음수=a 이전, 0=같음, 양수=a 이후 */
 export function compareYM(a: YearMonth, b: YearMonth): number {
   return a.year * 12 + a.month - (b.year * 12 + b.month);

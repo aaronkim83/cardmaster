@@ -11,7 +11,7 @@
 | 항목 | 상태 |
 |---|---|
 | 빌드 | ✅ `npm run build` 타입에러 0 |
-| 테스트 | ✅ Vitest **91개 통과** (14 파일) |
+| 테스트 | ✅ Vitest **101개 통과** (17 파일) |
 | 배포 | ✅ GitHub Pages 자동 (브랜치 push 시) · https://aaronkim83.github.io/cardmaster/ |
 | 런타임 | ✅ 주요 화면 콘솔 에러 0 (헤드리스 검증) |
 | 코드 품질 | 양호 — 로직은 `src/logic/*` 순수함수 + 테스트, SSOT/불변식 유지, 변경은 가산적 |
@@ -88,23 +88,23 @@
 
 ### 🟡 P2 — 분석·내보내기·폴리시
 
-#### T6. 자산 순자산 추이 + 월 스냅샷
+#### T6. 자산 순자산 추이 + 월 스냅샷 ✅ 완료
 - **목표**: 순자산 추이 그래프(Recharts) + 시세변동 자산(투자/부동산)의 월 스냅샷(manual) 저장(`BalanceSnapshot`).
 - **관련**: `AssetsScreen.tsx`, `logic/balance.ts`, `db.balanceSnapshots`, recharts(이미 의존성 있음).
 - **AC**: 월별 순자산 추이 표시, 수동 자산은 월 스냅샷으로 추이 반영.
 - **불변식**: #1 — 스냅샷은 SSOT 예외(유일하게 저장 허용).
 
-#### T7. 통계 소분류 드릴다운 UI + 차트
+#### T7. 통계 소분류 드릴다운 UI + 차트 ✅ 완료
 - **목표**: `categoryBreakdown`은 children 제공하나 UI는 대분류 위주. 대분류 탭 → 소분류 비중 드릴다운. CSS 막대를 Recharts로 교체(선택).
 - **관련**: `StatsScreen.tsx`, `logic/stats.ts`.
 - **AC**: 대분류 클릭 시 소분류 비중 노출.
 
-#### T8. CSV 내보내기 + 백업 리마인더
+#### T8. CSV 내보내기 + 백업 리마인더 ✅ 완료
 - **목표**: PRD §7 — 거래 CSV 내보내기, 백업 리마인더(마지막 백업 7일/50건 경과 시 배너).
 - **관련**: `MoreScreen.tsx`, `Setting`(lastBackupAt/시점), 인앱 배너.
 - **AC**: CSV 다운로드 동작, 조건 충족 시 홈/더보기 배너.
 
-#### T9. 환경설정 화면 실동작
+#### T9. 환경설정 화면 실동작 ✅ 완료(SettingsScreen)
 - **목표**: `환경설정` 행을 실제 화면으로(저장소 영속 상태/요청, 표시 옵션, 데모 토글 — T1과 연계).
 - **관련**: `MoreScreen.tsx`, 새 settings 화면, `navigator.storage.persisted()`.
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useMonthlyData } from '../store/useMonthlyData';
 import { useCategoryMap } from '../store/lookups';
 import { useAppStore } from '../store/useAppStore';
@@ -8,6 +9,7 @@ export function StatsScreen() {
   const data = useMonthlyData();
   const catMap = useCategoryMap();
   const navigate = useAppStore((s) => s.navigate);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const budgetName = (id: string | null) => (id === null ? '전체 예산' : `${catMap.get(id)?.icon ?? ''} ${catMap.get(id)?.name ?? '예산'}`);
   const maxCat = data.breakdown[0]?.amount ?? 1;
@@ -51,13 +53,35 @@ export function StatsScreen() {
           {data.breakdown.length === 0 && <div className="py-2 text-center text-[13px] text-faint">내역 없음</div>}
           {data.breakdown.map((slice) => {
             const c = catMap.get(slice.categoryId);
+            const hasChildren = slice.children.length > 1 || (slice.children[0] && slice.children[0].categoryId !== slice.categoryId);
+            const isOpen = expanded === slice.categoryId;
             return (
-              <div key={slice.categoryId} className="flex items-center gap-2.5 py-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-line2 text-[13px]">{c?.icon ?? '⋯'}</span>
-                <span className="w-[62px] text-[12.5px] font-semibold">{c?.name ?? '기타'}</span>
-                <span className="h-1.5 flex-1 overflow-hidden rounded-md bg-line2"><i className="block h-full rounded-md" style={{ width: `${(slice.amount / maxCat) * 100}%`, background: c?.color ?? 'var(--sub)' }} /></span>
-                <span className="num min-w-[54px] text-right text-[12px] font-bold">{won(slice.amount)}</span>
-                <span className="w-[30px] text-right text-[10.5px] font-semibold text-faint">{pct(slice.pct)}</span>
+              <div key={slice.categoryId}>
+                <button
+                  type="button"
+                  onClick={() => hasChildren && setExpanded(isOpen ? null : slice.categoryId)}
+                  className="flex w-full items-center gap-2.5 py-2 text-left"
+                >
+                  <span className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-line2 text-[13px]">{c?.icon ?? '⋯'}</span>
+                  <span className="flex w-[62px] items-center gap-1 text-[12.5px] font-semibold">{c?.name ?? '기타'}{hasChildren && <span className={`text-[9px] text-faint transition-transform ${isOpen ? 'rotate-90' : ''}`}>▶</span>}</span>
+                  <span className="h-1.5 flex-1 overflow-hidden rounded-md bg-line2"><i className="block h-full rounded-md" style={{ width: `${(slice.amount / maxCat) * 100}%`, background: c?.color ?? 'var(--sub)' }} /></span>
+                  <span className="num min-w-[54px] text-right text-[12px] font-bold">{won(slice.amount)}</span>
+                  <span className="w-[30px] text-right text-[10.5px] font-semibold text-faint">{pct(slice.pct)}</span>
+                </button>
+                {isOpen && (
+                  <div className="mb-1 ml-[38px] border-l border-line2 pl-3">
+                    {slice.children.map((child) => {
+                      const cc = catMap.get(child.categoryId);
+                      return (
+                        <div key={child.categoryId} className="flex items-center gap-2 py-1">
+                          <span className="flex-1 text-[12px] font-semibold text-sub">{cc?.icon ?? ''} {cc?.name ?? '직접'}</span>
+                          <span className="num text-[11.5px] font-bold">{won(child.amount)}</span>
+                          <span className="w-[34px] text-right text-[10px] font-semibold text-faint">{pct(slice.amount > 0 ? child.amount / slice.amount : 0)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}

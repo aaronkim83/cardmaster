@@ -2,6 +2,20 @@ import { useRef } from 'react';
 import { useAppStore, type ScreenId } from '../store/useAppStore';
 import { db } from '../db/schema';
 import { AppHead } from '../ui/components';
+import { transactionsToCsv } from '../logic/csv';
+import { shouldRemindBackup } from '../logic/backupReminder';
+
+const LAST_BACKUP_SETTING_KEY = 'lastBackupAt';
+
+function triggerDownload(content: BlobPart, type: string, filename: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const MANAGE: { screen: ScreenId; icon: string; name: string; desc: string }[] = [
   { screen: 'assets', icon: '📊', name: '자산', desc: '순자산 · 계좌별 잔액 · 추이' },
@@ -13,7 +27,15 @@ const MANAGE: { screen: ScreenId; icon: string; name: string; desc: string }[] =
 export function MoreScreen() {
   const navigate = useAppStore((s) => s.navigate);
   const restoreFromBackup = useAppStore((s) => s.restoreFromBackup);
+  const setSetting = useAppStore((s) => s.setSetting);
+  const transactions = useAppStore((s) => s.transactions);
+  const accounts = useAppStore((s) => s.accounts);
+  const categories = useAppStore((s) => s.categories);
+  const settings = useAppStore((s) => s.settings);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const lastBackupAt = settings.find((s) => s.key === LAST_BACKUP_SETTING_KEY)?.value as number | undefined;
+  const reminder = shouldRemindBackup(lastBackupAt, transactions);
 
   async function restore(file: File) {
     try {
@@ -46,19 +68,30 @@ export function MoreScreen() {
       balanceSnapshots: await db.balanceSnapshots.toArray(),
       settings: await db.settings.toArray(),
     };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `siljeok-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    triggerDownload(JSON.stringify(data, null, 2), 'application/json', `siljeok-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    await setSetting(LAST_BACKUP_SETTING_KEY, Date.now());
+  }
+
+  function exportCsv() {
+    const csv = transactionsToCsv(transactions, accounts, categories);
+    triggerDownload('﻿' + csv, 'text/csv;charset=utf-8', `siljeok-거래내역-${new Date().toISOString().slice(0, 10)}.csv`);
   }
 
   return (
     <>
       <AppHead title="더보기" />
       <div className="px-[18px] pb-[120px] pt-1.5">
+        {reminder.due && (
+          <button onClick={backup} className="mb-3.5 flex w-full items-center gap-2.5 rounded-[13px] border border-[#F3D6C7] bg-warn-bg px-[13px] py-[11px] text-left">
+            <span className="text-[15px]">💾</span>
+            <span className="flex-1 text-[12px] font-medium leading-snug text-ink">
+              {reminder.reason === 'days'
+                ? <>마지막 백업 후 <b className="font-bold text-warn">{reminder.daysSince}일</b> 지났어요. 지금 백업하세요.</>
+                : <>백업 후 거래 <b className="font-bold text-warn">{reminder.newCount}건</b>이 쌓였어요. 백업을 권장해요.</>}
+            </span>
+            <span className="rounded-[9px] bg-warn px-3 py-1.5 text-[11.5px] font-bold text-white">백업</span>
+          </button>
+        )}
         <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">관리</div>
         <div className="mb-4">
           {MANAGE.map((m) => (
@@ -69,8 +102,9 @@ export function MoreScreen() {
         <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">설정</div>
         <Row icon="💸" name="예산 설정" desc="전체·카테고리별 월 예산" onClick={() => navigate('budget')} />
         <Row icon="🏷️" name="카테고리 관리" desc="아이콘·색상·실적 제외 설정" onClick={() => navigate('category')} />
-        <Row icon="💾" name="백업 (JSON 내보내기)" desc="전 데이터를 파일로 저장" onClick={backup} />
+        <Row icon="💾" name="백업 (JSON 내보내기)" desc={lastBackupAt ? `마지막 백업 ${new Date(lastBackupAt).toLocaleDateString('ko-KR')}` : '전 데이터를 파일로 저장'} onClick={backup} />
         <Row icon="♻️" name="복원 (JSON 불러오기)" desc="백업 파일에서 데이터 복구" onClick={() => fileRef.current?.click()} />
+        <Row icon="📄" name="CSV 내보내기" desc="거래 내역을 표 형식으로 저장" onClick={exportCsv} />
         <Row icon="⚙️" name="환경설정" desc="데모 데이터 · 저장소 상태" onClick={() => navigate('settings')} />
         <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void restore(f); e.target.value = ''; }} />
       </div>

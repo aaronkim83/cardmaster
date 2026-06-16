@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useAppStore } from '../store/useAppStore';
 import { useMonthlyData } from '../store/useMonthlyData';
 import { accountBalance } from '../logic/balance';
+import { netWorthTrend } from '../logic/networth';
+import { addMonths, monthKey } from '../logic/period';
 import { AppHead, AddButton, Chip, MonthNav } from '../ui/components';
 import { Modal, Labeled, TextInput, NumberField, PrimaryButton, ChoiceRow } from '../ui/Modal';
-import { won } from '../ui/format';
-import type { Account, AccountType } from '../db/types';
+import { manWon, won } from '../ui/format';
+import type { Account, AccountType, BalanceSnapshot } from '../db/types';
 
 const TYPE_LABEL: Record<string, string> = { bank: '입출금', savings: '예적금', investment: '투자', cash: '현금', card: '카드', realestate: '부동산', loan: '대출', other: '기타' };
 const ASSET_TYPES: { value: AccountType; label: string }[] = [
@@ -16,15 +19,41 @@ const ASSET_TYPES: { value: AccountType; label: string }[] = [
 export function AssetsScreen() {
   const accounts = useAppStore((s) => s.accounts);
   const transactions = useAppStore((s) => s.transactions);
+  const balanceSnapshots = useAppStore((s) => s.balanceSnapshots);
+  const selectedMonth = useAppStore((s) => s.selectedMonth);
   const saveAccount = useAppStore((s) => s.saveAccount);
   const deleteAccount = useAppStore((s) => s.deleteAccount);
   const reorderAccounts = useAppStore((s) => s.reorderAccounts);
+  const saveBalanceSnapshot = useAppStore((s) => s.saveBalanceSnapshot);
   const navigate = useAppStore((s) => s.navigate);
   const data = useMonthlyData();
   const [editing, setEditing] = useState<Account | null>(null);
 
   const assets = accounts.filter((a) => a.kind === 'asset' && a.isActive).sort(accountSort);
   const liabilities = accounts.filter((a) => a.kind === 'liability' && a.isActive).sort(accountSort);
+  const manualAccounts = accounts.filter((a) => a.isActive && a.balanceMode === 'manual');
+
+  const trend = useMemo(() => {
+    const months = [-5, -4, -3, -2, -1, 0].map((n) => addMonths(selectedMonth, n));
+    return netWorthTrend(accounts, transactions, months, balanceSnapshots).map((p) => ({
+      label: `${p.month.month}월`,
+      net: p.net,
+    }));
+  }, [accounts, transactions, balanceSnapshots, selectedMonth]);
+
+  async function recordSnapshots() {
+    const period = monthKey(selectedMonth);
+    for (const a of manualAccounts) {
+      const snap: BalanceSnapshot = {
+        id: `${a.id}:${period}`,
+        accountId: a.id,
+        period,
+        balance: a.manualBalance ?? a.openingBalance,
+        createdAt: Date.now(),
+      };
+      await saveBalanceSnapshot(snap);
+    }
+  }
 
   const open = (a: Account) => (a.type === 'card' ? navigate('cardedit', { accountId: a.id }) : setEditing(a));
   const moveAccount = async (list: Account[], id: string, delta: -1 | 1) => {
@@ -40,6 +69,42 @@ export function AssetsScreen() {
           <div className="text-[11px] font-bold uppercase tracking-[0.13em] text-white/50">순자산 · 총자산 − 총부채</div>
           <div className="num my-2 text-[33px] font-extrabold">{won(data.netWorth.net)}<span className="text-[17px] font-bold">원</span></div>
           <div className="num text-[12px] font-semibold text-[#7BD3A0]">자산 {won(data.netWorth.assets)} · 부채 {won(data.netWorth.liabilities)}</div>
+        </div>
+
+        <div className="mb-3.5 rounded-2xl bg-surface p-[17px] shadow-card">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-sub">순자산 추이</span>
+            <span className="num text-[11px] font-semibold text-faint">최근 6개월</span>
+          </div>
+          <div className="h-[120px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trend} margin={{ top: 6, right: 6, bottom: 0, left: 6 }}>
+                <defs>
+                  <linearGradient id="nwFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--ink)" stopOpacity={0.18} />
+                    <stop offset="100%" stopColor="var(--ink)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--faint)' }} axisLine={false} tickLine={false} />
+                <YAxis hide domain={['dataMin', 'dataMax']} />
+                <Tooltip
+                  cursor={{ stroke: 'var(--line)' }}
+                  formatter={(v: number) => [`${won(v)}원`, '순자산']}
+                  contentStyle={{ borderRadius: 12, border: '1px solid var(--line)', fontSize: 12 }}
+                />
+                <Area type="monotone" dataKey="net" stroke="var(--ink)" strokeWidth={2} fill="url(#nwFill)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          {manualAccounts.length > 0 && (
+            <button
+              type="button"
+              onClick={recordSnapshots}
+              className="mt-2 w-full rounded-[10px] bg-line2 py-2 text-[12px] font-bold text-sub"
+            >
+              이번 달({selectedMonth.month}월) 수동 자산 {manWon(manualAccounts.reduce((s, a) => s + (a.manualBalance ?? 0), 0))} 기록
+            </button>
+          )}
         </div>
 
         <div className="mb-2.5 mt-5 text-[11px] font-bold uppercase tracking-[0.13em] text-faint">자산</div>

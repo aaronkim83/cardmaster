@@ -2,10 +2,12 @@ import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import type {
   Account,
+  BalanceSnapshot,
   Benefit,
   Budget,
   Category,
   RecurringRule,
+  Setting,
   Transaction,
 } from '../db/types';
 import { db } from '../db/schema';
@@ -54,6 +56,8 @@ interface AppState {
   budgets: Budget[];
   benefits: Benefit[];
   recurringRules: RecurringRule[];
+  balanceSnapshots: BalanceSnapshot[];
+  settings: Setting[];
 
   setSelectedMonth: (ym: YearMonth) => void;
   goPrevMonth: () => void;
@@ -86,6 +90,9 @@ interface AppState {
   saveRecurring: (r: RecurringRule) => Promise<void>;
   deleteRecurring: (id: string) => Promise<void>;
 
+  saveBalanceSnapshot: (snap: BalanceSnapshot) => Promise<void>;
+  setSetting: (key: string, value: unknown) => Promise<void>;
+
   restoreFromBackup: (data: unknown) => Promise<void>;
 }
 
@@ -109,6 +116,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   budgets: [],
   benefits: [],
   recurringRules: [],
+  balanceSnapshots: [],
+  settings: [],
 
   setSelectedMonth: (ym) => {
     set({ selectedMonth: ym });
@@ -230,6 +239,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     await reload(set);
   },
 
+  saveBalanceSnapshot: async (snap) => {
+    await db.balanceSnapshots.put(snap);
+    await reload(set);
+  },
+  setSetting: async (key, value) => {
+    await db.settings.put({ key, value });
+    await reload(set);
+  },
+
   restoreFromBackup: async (data) => {
     const d = data as Record<string, unknown[]>;
     const tables: [keyof typeof db, unknown[] | undefined][] = [
@@ -252,7 +270,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 }));
 
 async function reload(set: (partial: Partial<AppState>) => void): Promise<void> {
-  const [accounts, transactions, categories, budgets, benefits, recurringRules] =
+  const [accounts, transactions, categories, budgets, benefits, recurringRules, balanceSnapshots, settings] =
     await Promise.all([
       db.accounts.toArray(),
       db.transactions.toArray(),
@@ -260,8 +278,10 @@ async function reload(set: (partial: Partial<AppState>) => void): Promise<void> 
       db.budgets.toArray(),
       db.benefits.toArray(),
       db.recurringRules.toArray(),
+      db.balanceSnapshots.toArray(),
+      db.settings.toArray(),
     ]);
-  set({ accounts, transactions, categories, budgets, benefits, recurringRules, loaded: true });
+  set({ accounts, transactions, categories, budgets, benefits, recurringRules, balanceSnapshots, settings, loaded: true });
 }
 
 async function resetDatabaseToCategories(onboarded: boolean): Promise<void> {
