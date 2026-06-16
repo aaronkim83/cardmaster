@@ -4,6 +4,7 @@ import { useMonthlyData } from '../store/useMonthlyData';
 import { useAccountMap } from '../store/lookups';
 import { topMerchants } from '../logic/merchants';
 import type { CardForecast } from '../logic/forecast';
+import type { BenefitSummary } from '../logic/benefit';
 import { Chip, GroupLabel, Meter, MonthNav } from '../ui/components';
 import { manWon, pct, won } from '../ui/format';
 import type { Account } from '../db/types';
@@ -60,10 +61,10 @@ export function HomeScreen() {
         </div>
 
         {action.length > 0 && <GroupLabel warn count={action.length}>⚠ 액션 필요</GroupLabel>}
-        {action.map((p) => <PerfCard key={p.cardId} p={p} card={accMap.get(p.cardId)!} />)}
+        {action.map((p) => <PerfCard key={p.cardId} p={p} card={accMap.get(p.cardId)!} benefitSummary={data.benefits} />)}
 
         {progress.length > 0 && <GroupLabel count={progress.length}>📌 진행 중</GroupLabel>}
-        {progress.map((p) => <PerfCard key={p.cardId} p={p} card={accMap.get(p.cardId)!} />)}
+        {progress.map((p) => <PerfCard key={p.cardId} p={p} card={accMap.get(p.cardId)!} benefitSummary={data.benefits} />)}
 
         {achieved.length > 0 && <GroupLabel count={achieved.length}>✓ 달성</GroupLabel>}
         {achieved.map((p) => <AchievedRow key={p.cardId} p={p} card={accMap.get(p.cardId)!} />)}
@@ -88,7 +89,7 @@ export function HomeScreen() {
   );
 }
 
-function PerfCard({ p, card }: { p: CardForecast; card: Account }) {
+function PerfCard({ p, card, benefitSummary }: { p: CardForecast; card: Account; benefitSummary: BenefitSummary }) {
   const navigate = useAppStore((s) => s.navigate);
   const transactions = useAppStore((s) => s.transactions);
   const categories = useAppStore((s) => s.categories);
@@ -96,6 +97,27 @@ function PerfCard({ p, card }: { p: CardForecast; card: Account }) {
   const top = useMemo(
     () => topMerchants(card, transactions, categories, p.benefitMonth, benefits, 3),
     [card, transactions, categories, benefits, p.benefitMonth],
+  );
+  // 카드 혜택 진행(한도 남은액) — 한도 있는 혜택 우선, 받은 금액 큰 순으로 최대 2개
+  const cardBenefits = useMemo(
+    () =>
+      benefits
+        .filter((b) => b.accountId === card.id && b.isActive)
+        .map((b) => {
+          const prog = benefitSummary.byBenefit.get(b.id);
+          return {
+            id: b.id,
+            name: b.name,
+            type: b.type,
+            limit: b.monthlyLimit,
+            received: prog?.received ?? 0,
+            exhausted: prog?.exhausted ?? false,
+            estimated: prog?.estimated ?? false,
+          };
+        })
+        .sort((a, b) => (b.limit ? 1 : 0) - (a.limit ? 1 : 0) || b.received - a.received)
+        .slice(0, 2),
+    [benefits, card.id, benefitSummary],
   );
   const behind = p.status === 'behind' || p.status === 'short';
   const tagText = p.status === 'behind' || p.status === 'short' ? '뒤처짐' : card.isPinned ? '📌 집중' : '진행';
@@ -124,12 +146,49 @@ function PerfCard({ p, card }: { p: CardForecast; card: Account }) {
         )}
         {p.projected > 0 && p.shortfall > 0 && <> · 자동이체 포함 {manWon(p.forecast)} 전망</>}
       </div>
+      {cardBenefits.length > 0 && (
+        <div className="mt-2.5 space-y-[7px] border-t border-line2 pt-2.5">
+          {cardBenefits.map((b) => <BenefitBar key={b.id} {...b} />)}
+        </div>
+      )}
       {top.length > 0 && (
         <div className="mt-[9px] border-t border-line2 pt-[9px] text-[11.5px] font-semibold text-ink">
           <span className="mr-[7px] text-[9.5px] font-bold uppercase tracking-[0.05em] text-faint">실적 채우기</span>
           {top.map((m, i) => (
             <span key={m.merchant}>{i > 0 && ' · '}{m.isBenefit && '🎁'}{m.merchant}</span>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BenefitBar({ name, type, limit, received, exhausted, estimated }: {
+  name: string;
+  type: 'discount' | 'point';
+  limit?: number;
+  received: number;
+  exhausted: boolean;
+  estimated: boolean;
+}) {
+  const remaining = limit ? Math.max(limit - received, 0) : 0;
+  const fill = limit ? Math.min(received / limit, 1) : received > 0 ? 1 : 0;
+  const right = estimated
+    ? `실적 채우면 약 ${won(received)}원`
+    : limit
+      ? exhausted ? '한도 소진' : `${won(remaining)}원 남음`
+      : `${won(received)}원 ${type === 'point' ? '적립' : '할인'}`;
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 text-[10.5px] font-semibold">
+        <span className="flex min-w-0 items-center gap-1 text-sub">
+          🎁<span className="truncate">{name}</span>
+        </span>
+        <span className={`num flex-none ${estimated || exhausted ? 'text-faint' : 'text-good'}`}>{right}</span>
+      </div>
+      {limit && !estimated && (
+        <div className="mt-[3px] h-[5px] overflow-hidden rounded-full bg-line2">
+          <i className="block h-full rounded-full" style={{ width: `${fill * 100}%`, background: exhausted ? 'var(--faint)' : 'var(--good)' }} />
         </div>
       )}
     </div>

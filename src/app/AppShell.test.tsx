@@ -272,4 +272,12 @@ describe('AppShell 렌더 스모크', () => {
     // 저장하지 않아도 computeBenefits로 계산된 혜택액(🎁 …원)이 표시됨
     await waitFor(() => expect(screen.getByText(/🎁.*원/)).toBeTruthy());
   });
+
+  it('홈 실적 카드에 혜택 한도 남은액이 표시된다', async () => {
+    await act(async () => { await useAppStore.getState().loadDemoData(); });
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+    // 한도 있는 혜택의 남은 금액(…원 남음)이 카드에 표시됨
+    await waitFor(() => expect(screen.getAllByText(/원 남음/).length).toBeGreaterThan(0));
+  });
 });
