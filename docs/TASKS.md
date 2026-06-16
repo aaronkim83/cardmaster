@@ -11,7 +11,7 @@
 | 항목 | 상태 |
 |---|---|
 | 빌드 | ✅ `npm run build` 타입에러 0 |
-| 테스트 | ✅ Vitest **103개 통과** (17 파일) |
+| 테스트 | ✅ Vitest **104개 통과** (17 파일) |
 | 배포 | ✅ GitHub Pages 자동 (브랜치 push 시) · https://aaronkim83.github.io/cardmaster/ |
 | 런타임 | ✅ 주요 화면 콘솔 에러 0 (헤드리스 검증) |
 | 코드 품질 | 양호 — 로직은 `src/logic/*` 순수함수 + 테스트, SSOT/불변식 유지, 변경은 가산적 |
@@ -119,7 +119,7 @@
 
 ## D. 설계 결정 필요(사장님/리드 확인 후 진행)
 
-1. **혜택액 거래 영속화**: 현재 `appliedBenefitId/benefitAmount`는 저장하지 않고 `computeBenefits`로 실시간 계산(SSOT 친화적). PRD는 거래에 `benefitAmount` 저장을 명시 → **실시간 유지 vs 저장** 택1. (권장: 실시간 유지, 단 내보내기/리포트 시 계산값 첨부)
+1. **혜택액 거래 영속화** ✅ 결정: **실시간 유지**(저장 안 함, SSOT). PRD `benefitAmount` 필드는 표시/내보내기용 파생값으로 해석. EditScreen '적용 혜택'을 `useMonthlyData().benefits.applied`로 계산해 표시(한도 클리핑 반영). 거래에 상시 저장하지 않음.
 2. **2단 카테고리 제외 3-state**: `defaultExcluded`가 boolean이라 "제외 대분류 아래 자식만 포함" 역오버라이드 불가. 필요해지면 `boolean|null`로 마이그레이션(Dexie v2).
 3. **과거달 자동이체 일괄 실체화 범위**(T2): 현재달까지만 vs 누락분 소급.
 

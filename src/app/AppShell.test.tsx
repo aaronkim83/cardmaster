@@ -259,4 +259,17 @@ describe('AppShell 렌더 스모크', () => {
       expect(t?.status).toBe('pending');
     });
   });
+
+  it('거래 수정 화면은 적용 혜택을 계산해 표시한다', async () => {
+    await act(async () => { await useAppStore.getState().loadDemoData(); });
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+    const star = useAppStore.getState().transactions.find((t) => (t.merchant ?? '').includes('스타벅스'));
+    expect(star).toBeTruthy();
+
+    act(() => useAppStore.getState().navigate('edit', { txnId: star!.id }, { preserveHistory: true }));
+    await waitFor(() => expect(screen.getByText('적용 혜택')).toBeTruthy());
+    // 저장하지 않아도 computeBenefits로 계산된 혜택액(🎁 …원)이 표시됨
+    await waitFor(() => expect(screen.getByText(/🎁.*원/)).toBeTruthy());
+  });
 });

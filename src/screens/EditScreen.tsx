@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { useMonthlyData } from '../store/useMonthlyData';
 import { useAccountMap } from '../store/lookups';
 import { buildCategoryMap, isExcludedForCard } from '../logic/category';
 import { AppHead, Toggle } from '../ui/components';
@@ -21,9 +22,11 @@ export function EditScreen() {
   const transactions = useAppStore((s) => s.transactions);
   const accounts = useAppStore((s) => s.accounts);
   const categories = useAppStore((s) => s.categories);
+  const benefitsList = useAppStore((s) => s.benefits);
   const updateTransaction = useAppStore((s) => s.updateTransaction);
   const deleteTransaction = useAppStore((s) => s.deleteTransaction);
   const goBack = useAppStore((s) => s.goBack);
+  const monthly = useMonthlyData();
   const accMap = useAccountMap();
 
   const txn = transactions.find((t) => t.id === txnId);
@@ -37,6 +40,10 @@ export function EditScreen() {
   const acc = accMap.get(draft.accountId);
   const autoCounts = draft.type === 'expense' && !!acc?.card?.trackPerformance && !isExcludedForCard(acc, draft.categoryId, catLogicMap);
   const perfOn = draft.countsForPerformance ?? autoCounts;
+
+  // 적용 혜택은 저장하지 않고 월 단위로 실시간 계산(computeBenefits)한 값을 표시.
+  const appliedBenefit = monthly.benefits.applied.get(txn.id);
+  const appliedBenefitName = appliedBenefit ? benefitsList.find((b) => b.id === appliedBenefit.benefitId)?.name : undefined;
 
   const paymentAccounts = accounts.filter((a) => a.isActive);
   const depositAccounts = accounts.filter((a) => a.kind === 'asset' && a.isActive);
@@ -129,7 +136,11 @@ export function EditScreen() {
             </div>
           )}
           <Field k="적용 혜택" last>
-            <span className="text-[13.5px] font-bold text-faint">{txn.benefitAmount ? `${won(txn.benefitAmount)}원` : '없음'}</span>
+            {appliedBenefit ? (
+              <span className="text-[13.5px] font-bold text-good">🎁 {appliedBenefitName ?? '혜택'} {won(appliedBenefit.benefitAmount)}원</span>
+            ) : (
+              <span className="text-[13.5px] font-bold text-faint">없음</span>
+            )}
           </Field>
         </div>
 
