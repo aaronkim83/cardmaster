@@ -5,6 +5,7 @@ import { useMonthlyData } from '../store/useMonthlyData';
 import { AppHead, AddButton, Chip, Toggle } from '../ui/components';
 import { NumberField } from '../ui/Modal';
 import { won } from '../ui/format';
+import { normalizeCardLastDigits } from '../logic/cardImportMapping';
 import type { Account, CardConfig } from '../db/types';
 
 function blankCard(): Account {
@@ -85,6 +86,25 @@ export function CardEditScreen() {
           />
         </div>
 
+        <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">카드 정보</div>
+        <div className="mb-3.5 overflow-hidden rounded-[13px] shadow-card">
+          <Field
+            k="카드번호 뒤 4자리"
+            last
+            v={
+              <input
+                aria-label="카드번호 뒤 4자리"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={cfg.cardLast4 ?? ''}
+                onChange={(e) => setCfg({ cardLast4: normalizeCardLastDigits(e.target.value) })}
+                placeholder="1234"
+                className="num w-24 rounded-md bg-line2 px-2 py-1 text-right text-[13.5px] font-bold outline-none"
+              />
+            }
+          />
+        </div>
+
         <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">실적 설정</div>
         <div className="mb-3.5 overflow-hidden rounded-[13px] shadow-card">
           <Field k="실적 추적" v={<Toggle on={cfg.trackPerformance} onChange={(v) => setCfg({ trackPerformance: v })} />} />
@@ -145,6 +165,7 @@ function normalizeCardDraft(account: Account): Account {
     icon: account.icon?.trim() || account.name.trim().slice(0, 1),
     card: {
       ...card,
+      cardLast4: normalizeCardLastDigits(card.cardLast4) || undefined,
       targetAmount: Math.max(card.targetAmount, 0),
       minPerTxn: card.minPerTxn && card.minPerTxn > 0 ? card.minPerTxn : undefined,
       settlementDay,

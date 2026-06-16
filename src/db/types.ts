@@ -20,6 +20,7 @@ export interface CardConfig {
   trackPerformance: boolean;
   minPerTxn?: number;
   excludedCategoryIds: string[]; // 대분류 지정 시 자식 소분류 포함
+  cardLast4?: string; // 카드번호 뒤 4자리. 엑셀/문자 가져오기 결제수단 매핑에 사용.
   settlementAccountId?: string;
   settlementDay?: number;
   benefitMemo?: string;

@@ -74,6 +74,7 @@ describe('AppShell 렌더 스모크', () => {
     const nextName = `${hyundaiName} 테스트`;
     fireEvent.change(screen.getByLabelText('카드 이름'), { target: { value: nextName } });
     fireEvent.change(screen.getByLabelText('카드 아이콘'), { target: { value: 'HM' } });
+    fireEvent.change(screen.getByLabelText('카드번호 뒤 4자리'), { target: { value: '0789' } });
     fireEvent.change(screen.getByLabelText('결제일'), { target: { value: '17' } });
     fireEvent.click(screen.getByText('저장'));
 
@@ -81,6 +82,7 @@ describe('AppShell 렌더 스모크', () => {
       const card = useAppStore.getState().accounts.find((a) => a.id === 'card-hyundai');
       expect(card?.name).toBe(nextName);
       expect(card?.icon).toBe('HM');
+      expect(card?.card?.cardLast4).toBe('0789');
       expect(card?.card?.settlementDay).toBe(17);
     });
   });
