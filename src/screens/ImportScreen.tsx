@@ -127,6 +127,7 @@ export function ImportScreen() {
   const excelUnmatched = excel ? excel.rows.length - excelMatched : 0;
   const excelSaveable = excel?.rows.filter((r) => resolvedExcelAccountId(r)).length ?? 0;
   const excelCardGroups = excel ? cardGroupsForRows(excel.rows, accounts) : [];
+  const unresolvedExcelCardGroups = excelCardGroups.filter((group) => !group.autoAccountId);
   const excelPreviewRows = excel ? (showAllExcelRows ? excel.rows : excel.rows.slice(0, 8)) : [];
 
   function resolvedExcelAccountId(row: ExcelRow): string | undefined {
@@ -183,17 +184,17 @@ export function ImportScreen() {
                     <>카드번호 열을 찾지 못했어요. 아래 결제수단으로 저장합니다.</>
                   )}
                 </div>
-                {excelCardGroups.length > 0 && (
+                {unresolvedExcelCardGroups.length > 0 && (
                   <div className="mb-3.5 overflow-hidden rounded-[13px] shadow-card">
-                    <div className="bg-line2 px-[13px] py-[9px] text-[10px] font-bold uppercase tracking-[0.05em] text-faint">카드번호별 결제수단</div>
-                    {excelCardGroups.map((group, i) => (
-                      <div key={group.cardDigits} className={`flex items-center gap-2 bg-surface px-[13px] py-2.5 ${i < excelCardGroups.length - 1 ? 'border-b border-line2' : ''}`}>
+                    <div className="bg-line2 px-[13px] py-[9px] text-[10px] font-bold uppercase tracking-[0.05em] text-faint">확인 필요한 카드번호별 결제수단</div>
+                    {unresolvedExcelCardGroups.map((group, i) => (
+                      <div key={group.cardDigits} className={`flex items-center gap-2 bg-surface px-[13px] py-2.5 ${i < unresolvedExcelCardGroups.length - 1 ? 'border-b border-line2' : ''}`}>
                         <div className="min-w-0 flex-1">
                           <div className="text-[12.5px] font-bold">카드 {group.cardDigits}</div>
-                          <div className="mt-px text-[10.5px] font-semibold text-faint">{group.count}건{group.autoAccountName ? ` · 자동 ${group.autoAccountName}` : ''}</div>
+                          <div className="mt-px text-[10.5px] font-semibold text-faint">{group.count}건</div>
                         </div>
                         <select
-                          value={excelCardMap[group.cardDigits] ?? group.autoAccountId ?? ''}
+                          value={excelCardMap[group.cardDigits] ?? ''}
                           onChange={(e) => setCardGroupAccount(group.cardDigits, e.target.value)}
                           className="w-40 rounded-[9px] border border-line bg-surface px-2 py-2 text-[12px] font-semibold outline-none"
                         >
@@ -204,7 +205,7 @@ export function ImportScreen() {
                     ))}
                   </div>
                 )}
-                {excelUnmatched > 0 && excelCardGroups.length === 0 && (
+                {excelUnmatched > 0 && unresolvedExcelCardGroups.length === 0 && (
                   <>
                     <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-sub">미매칭 행 저장할 결제수단</div>
                     <select value={excelFallbackAccount} onChange={(e) => setExcelFallbackAccount(e.target.value)} className="mb-3.5 w-full rounded-[10px] border-[1.5px] border-line bg-surface px-3 py-2.5 text-[14px] outline-none">

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { useMonthlyData } from '../store/useMonthlyData';
 import { useAccountMap, useCategoryMap } from '../store/lookups';
 import { inMonth } from '../logic/period';
 import { AppHead, MonthNav } from '../ui/components';
@@ -16,16 +17,26 @@ const TYPE_FILTERS: { value: 'all' | TxnType; label: string }[] = [
 export function LedgerScreen() {
   const transactions = useAppStore((s) => s.transactions);
   const accounts = useAppStore((s) => s.accounts);
+  const benefits = useAppStore((s) => s.benefits);
+  const initialAccountId = useAppStore((s) => s.params.accountId);
   const selectedMonth = useAppStore((s) => s.selectedMonth);
   const navigate = useAppStore((s) => s.navigate);
+  const data = useMonthlyData();
   const accMap = useAccountMap();
   const catMap = useCategoryMap();
 
   const [query, setQuery] = useState('');
-  const [cardFilter, setCardFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | TxnType>('all');
 
   const cards = accounts.filter((a) => a.type === 'card');
+  const requestedCardId = cards.some((card) => card.id === initialAccountId) ? initialAccountId! : 'all';
+  const [cardFilter, setCardFilter] = useState<string>(requestedCardId);
+  const selectedCard = cardFilter !== 'all' ? accMap.get(cardFilter) : undefined;
+  const selectedCardBenefits = selectedCard ? benefits.filter((b) => b.accountId === selectedCard.id && b.isActive) : [];
+
+  useEffect(() => {
+    setCardFilter(requestedCardId);
+  }, [requestedCardId]);
 
   const monthTxns = useMemo(
     () => transactions.filter((t) => inMonth(t.date, selectedMonth)),
@@ -66,6 +77,15 @@ export function LedgerScreen() {
           <span className="text-sub">수입 <b className="num text-good">{won(income)}</b></span>
           <span className="text-sub">건수 <b>{monthTxns.length}</b></span>
         </div>
+
+        {selectedCard && (
+          <CardBenefitPanel
+            cardName={selectedCard.name}
+            actualTotal={data.benefits.byCard.get(selectedCard.id) ?? 0}
+            benefits={selectedCardBenefits}
+            progress={data.benefits.byBenefit}
+          />
+        )}
 
         <div className="mb-[11px] flex items-center gap-2.5 rounded-xl border-[1.5px] border-line bg-surface px-3.5 py-2.5">
           <span className="text-sm text-faint">🔍</span>
@@ -129,6 +149,54 @@ export function LedgerScreen() {
         })}
       </div>
     </>
+  );
+}
+
+function CardBenefitPanel({
+  cardName,
+  actualTotal,
+  benefits,
+  progress,
+}: {
+  cardName: string;
+  actualTotal: number;
+  benefits: { id: string; name: string; type: 'discount' | 'point'; monthlyLimit?: number }[];
+  progress: ReturnType<typeof useMonthlyData>['benefits']['byBenefit'];
+}) {
+  const estimatedTotal = benefits.reduce((sum, benefit) => {
+    const prog = progress.get(benefit.id);
+    return prog?.estimated ? sum + prog.received : sum;
+  }, 0);
+
+  return (
+    <div className="mb-3.5 overflow-hidden rounded-[13px] bg-surface shadow-card">
+      <div className="flex items-center justify-between border-b border-line2 px-[13px] py-[11px]">
+        <span className="truncate text-[12.5px] font-extrabold">{cardName} 혜택</span>
+        <div className="num flex-none text-right">
+          <div className="text-[12.5px] font-extrabold text-good">실제 +{won(actualTotal)}원</div>
+          {estimatedTotal > 0 && <div className="mt-px text-[10.5px] font-bold text-warn">예상 +{won(estimatedTotal)}원</div>}
+        </div>
+      </div>
+      {benefits.length === 0 ? (
+        <div className="px-[13px] py-3 text-[12px] font-semibold text-faint">등록된 혜택이 없어요</div>
+      ) : (
+        benefits.map((benefit, i) => {
+          const prog = progress.get(benefit.id);
+          const received = prog?.received ?? 0;
+          return (
+            <div key={benefit.id} className={`flex items-center justify-between gap-3 px-[13px] py-2.5 ${i < benefits.length - 1 ? 'border-b border-line2' : ''}`}>
+              <div className="min-w-0">
+                <div className="truncate text-[12px] font-bold">🎁 {benefit.name}</div>
+                {prog?.estimated && <div className="mt-px text-[10.5px] font-semibold text-warn">실적 미충족 예상 혜택</div>}
+              </div>
+              <span className="num flex-none text-[12px] font-extrabold text-sub">
+                {won(received)}{benefit.monthlyLimit ? ` / ${won(benefit.monthlyLimit)}원` : benefit.type === 'point' ? '원 적립' : '원 할인'}
+              </span>
+            </div>
+          );
+        })
+      )}
+    </div>
   );
 }
 

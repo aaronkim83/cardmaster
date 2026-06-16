@@ -4,7 +4,7 @@ import { useMonthlyData } from '../store/useMonthlyData';
 import { useAccountMap } from '../store/lookups';
 import { topMerchants } from '../logic/merchants';
 import type { CardForecast } from '../logic/forecast';
-import { AppHead, Chip, GroupLabel, Meter, MonthNav } from '../ui/components';
+import { Chip, GroupLabel, Meter, MonthNav } from '../ui/components';
 import { manWon, pct, won } from '../ui/format';
 import type { Account } from '../db/types';
 
@@ -23,7 +23,9 @@ export function HomeScreen() {
 
   return (
     <>
-      <AppHead title="실적가계부" right={<MonthNav />} />
+      <div className="flex items-center justify-center px-[18px] pb-3 pt-[10px]">
+        <MonthNav />
+      </div>
       <div className="px-[18px] pb-[120px] pt-1.5">
         {/* 통합 요약 카드 */}
         <div className="mb-4 rounded-2xl bg-surface px-4 py-3.5 shadow-card">
@@ -99,7 +101,7 @@ function PerfCard({ p, card }: { p: CardForecast; card: Account }) {
   const tagText = p.status === 'behind' || p.status === 'short' ? '뒤처짐' : card.isPinned ? '📌 집중' : '진행';
 
   return (
-    <div className="mb-[9px] rounded-[14px] bg-surface px-3.5 py-[13px] shadow-card" onClick={() => navigate('cardedit', { accountId: card.id })}>
+    <div className="mb-[9px] rounded-[14px] bg-surface px-3.5 py-[13px] shadow-card" onClick={() => navigate('ledger', { accountId: card.id }, { preserveHistory: true })}>
       <div className="mb-[9px] flex items-center gap-2.5">
         <Chip color={card.color} imageSrc={card.iconImage} size={28}>{card.icon}</Chip>
         <div className="min-w-0 flex-1">
@@ -137,7 +139,7 @@ function PerfCard({ p, card }: { p: CardForecast; card: Account }) {
 function AchievedRow({ p, card }: { p: CardForecast; card: Account }) {
   const navigate = useAppStore((s) => s.navigate);
   return (
-    <div className="relative mb-2 flex items-center gap-3 rounded-[13px] bg-surface px-3.5 py-3 shadow-card" onClick={() => navigate('cardedit', { accountId: card.id })}>
+    <div className="relative mb-2 flex items-center gap-3 rounded-[13px] bg-surface px-3.5 py-3 shadow-card" onClick={() => navigate('ledger', { accountId: card.id }, { preserveHistory: true })}>
       <span className="absolute left-0 top-[9px] bottom-[9px] w-[3px] rounded-r bg-good" />
       <Chip color={card.color} imageSrc={card.iconImage} size={28}>{card.icon}</Chip>
       <div className="min-w-0 flex-1">

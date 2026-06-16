@@ -14,7 +14,7 @@ describe('AppShell 렌더 스모크', () => {
   it('첫 실행: 시드 후 홈 화면과 데모 카드가 렌더된다', async () => {
     render(<AppShell />);
     await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
-    expect(screen.getByText('실적가계부')).toBeTruthy();
+    expect(screen.queryByText('실적가계부')).toBeNull();
     // 데모 카드(삼성 taptap)가 실적 그룹에 노출
     expect(screen.getAllByText(/삼성 taptap/).length).toBeGreaterThan(0);
   });
@@ -34,6 +34,16 @@ describe('AppShell 렌더 스모크', () => {
 
     fireEvent.click(screen.getByLabelText('이전 화면'));
     await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy());
+  });
+
+  it('홈 카드 클릭은 카드별 내역과 혜택으로 이동한다', async () => {
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+
+    fireEvent.click(screen.getByText('현대카드 M'));
+
+    await waitFor(() => expect(screen.getByText('현대카드 M 혜택')).toBeTruthy());
+    expect(screen.getByText(/M포인트 5% 적립/)).toBeTruthy();
   });
 
   it('예산 설정 화면으로 이동하면 등록된 예산이 렌더된다', async () => {
