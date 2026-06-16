@@ -15,6 +15,7 @@ import { ImportScreen } from '../screens/ImportScreen';
 import { EditScreen } from '../screens/EditScreen';
 import { CategoryScreen } from '../screens/CategoryScreen';
 import { BudgetScreen } from '../screens/BudgetScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { TabBar } from './TabBar';
 
 const SCREENS: Record<ScreenId, ComponentType> = {
@@ -32,6 +33,7 @@ const SCREENS: Record<ScreenId, ComponentType> = {
   edit: EditScreen,
   category: CategoryScreen,
   budget: BudgetScreen,
+  settings: SettingsScreen,
 };
 
 export function AppShell() {

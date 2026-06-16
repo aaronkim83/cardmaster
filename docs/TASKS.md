@@ -11,7 +11,7 @@
 | 항목 | 상태 |
 |---|---|
 | 빌드 | ✅ `npm run build` 타입에러 0 |
-| 테스트 | ✅ Vitest **79개 통과** (13 파일) |
+| 테스트 | ✅ Vitest **91개 통과** (14 파일) |
 | 배포 | ✅ GitHub Pages 자동 (브랜치 push 시) · https://aaronkim83.github.io/cardmaster/ |
 | 런타임 | ✅ 주요 화면 콘솔 에러 0 (헤드리스 검증) |
 | 코드 품질 | 양호 — 로직은 `src/logic/*` 순수함수 + 테스트, SSOT/불변식 유지, 변경은 가산적 |
@@ -39,7 +39,7 @@
 
 ### 🔴 P0 — 실사용 시작을 막는 것
 
-#### T1. 데모 데이터 정리 + 실사용 시작 플로우
+#### T1. 데모 데이터 정리 + 실사용 시작 플로우 ✅ 완료
 - **목표**: 첫 실행 데모(카드·거래)를 실제 사용 전에 깔끔히 비울 수 있어야 함. 현재 `환경설정` 행은 동작 없음.
 - **관련**: `src/screens/MoreScreen.tsx`(환경설정 행), `src/store/useAppStore.ts`, `src/db/demoSeed.ts`, `src/db/schema.ts`.
 - **구현 가이드**:
@@ -50,7 +50,7 @@
 - **테스트**: 스토어 단위 — reset 후 transactions/accounts 0, categories>0; demo 재시드 가드.
 - **불변식**: 시드 1회 가드(`seedOnce`) 흐름 깨지 않기.
 
-#### T2. 자동이체 도래분 자동 실체화 연결
+#### T2. 자동이체 도래분 자동 실체화 연결 ✅ 완료
 - **목표**: `logic/recurring.ts: generateDueTransactions`는 구현·테스트 완료됐으나 **앱에 연결 안 됨**. 월 진입/로드시 도래분을 실제 거래로 생성(고정=confirmed, 변동=pending)하고 persist.
 - **관련**: `src/store/useAppStore.ts`(loadAll / setSelectedMonth), `src/logic/recurring.ts`, `RecurringScreen.tsx`.
 - **구현 가이드**:
@@ -63,7 +63,7 @@
 
 ### 🟠 P1 — 기능 완성도
 
-#### T3. 가져오기 중복 감지(dedup) + ImportProfile 저장
+#### T3. 가져오기 중복 감지(dedup) + ImportProfile 저장 ✅ 완료
 - **목표**: 같은 내역을 두 번 가져올 때 중복 방지. 엑셀 열 매핑을 ImportProfile로 저장·재사용.
 - **관련**: `src/screens/ImportScreen.tsx`, 새 `src/logic/importDedup.ts`, `db.importProfiles`, `Transaction.importBatchId`.
 - **구현 가이드**:
@@ -72,14 +72,14 @@
 - **AC**: 동일 파일 재업로드 시 중복 건이 "이미 있음"으로 표시되고 저장에서 빠짐 / 매핑 프로파일 재사용.
 - **테스트**: `importDedup.test.ts` 경계(동일/유사/다른 거래).
 
-#### T4. 입력 화면 소분류·실적토글 가시성 개선
+#### T4. 입력 화면 소분류·실적토글 가시성 개선 ✅ 완료
 - **목표**: 키패드에 **소분류 칩/실적 인정 토글**이 가려 스크롤 필요. 레이아웃 정돈(PRD §6.2: 상단 고정 금액 / 가운데 스크롤 / 하단 고정 키패드·저장).
 - **관련**: `src/screens/InputScreen.tsx`.
 - **구현 가이드**: 금액부 컴팩트화, 가운데 picker가 키패드 위에서 확실히 스크롤되도록(현재 일부 가림). 대분류 선택 시 소분류가 잘 보이게, 실적 토글은 카테고리 직후 노출. 키패드 토글(접기) 또는 picker 영역 min-height 확보 검토.
 - **AC**: 실기기(작은 화면 포함)에서 소분류 선택과 실적 토글이 스크롤로 모두 도달 가능, 저장 항상 노출.
 - **테스트**: 렌더 스모크(요소 존재) + 수동 QA 노트.
 
-#### T5. 카테고리/계좌/카드 순서변경 + 핀
+#### T5. 카테고리/계좌/카드 순서변경 + 핀 ✅ 완료
 - **목표**: `reorderCategories` 액션은 있으나 UI 없음. 계좌/카드 정렬·카드 핀(집중) 토글 UI.
 - **관련**: `CategoryScreen.tsx`, `AssetsScreen.tsx`, `CardsScreen.tsx`/`CardEditScreen.tsx`, store.
 - **구현 가이드**: 우선 ↑/↓ 버튼 방식(드래그는 후순위). `sortOrder` 갱신. 카드 `isPinned`는 CardEdit에 이미 있음 — 목록 정렬에 반영.

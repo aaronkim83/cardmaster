@@ -15,6 +15,7 @@ export function CategoryScreen() {
   const transactions = useAppStore((s) => s.transactions);
   const saveCategory = useAppStore((s) => s.saveCategory);
   const deleteCategory = useAppStore((s) => s.deleteCategory);
+  const reorderCategories = useAppStore((s) => s.reorderCategories);
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [editing, setEditing] = useState<Editing | null>(null);
 
@@ -26,6 +27,11 @@ export function CategoryScreen() {
     const used = [c.id, ...childIds].reduce((n, id) => n + usedCount(id), 0);
     const msg = used > 0 ? `'${c.name}'에 연결된 거래 ${used}건이 미분류로 남습니다. 삭제할까요?` : `'${c.name}'을(를) 삭제할까요?`;
     if (confirm(msg)) await deleteCategory(c.id);
+  }
+
+  async function moveCategory(list: Category[], id: string, delta: -1 | 1) {
+    const next = moveItem(list, id, delta);
+    if (next !== list) await reorderCategories(next);
   }
 
   return (
@@ -46,6 +52,8 @@ export function CategoryScreen() {
                 <span className="text-[15px]">{main.icon}</span>{main.name}
                 {main.defaultExcluded && <span className="rounded-md bg-line2 px-2 py-[3px] text-[10px] font-bold text-sub">실적 제외</span>}
                 <span className="ml-auto flex gap-2 text-[12px] font-semibold text-faint">
+                  <MoveButton label={`${main.name} 위로`} disabled={mains[0]?.id === main.id} onClick={() => moveCategory(mains, main.id, -1)}>↑</MoveButton>
+                  <MoveButton label={`${main.name} 아래로`} disabled={mains[mains.length - 1]?.id === main.id} onClick={() => moveCategory(mains, main.id, 1)}>↓</MoveButton>
                   <button onClick={() => setEditing({ mode: 'edit', category: main })}>편집</button>
                   <button onClick={() => remove(main)}>삭제</button>
                 </span>
@@ -57,6 +65,8 @@ export function CategoryScreen() {
                       <span className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[10px] bg-line2 text-base">{sub.icon}</span>
                       <span className="text-[14px] font-semibold">{sub.name}</span>
                       <span className="ml-auto flex gap-2.5 text-[12px] font-semibold text-faint">
+                        <MoveButton label={`${sub.name} 위로`} disabled={subs[0]?.id === sub.id} onClick={() => moveCategory(subs, sub.id, -1)}>↑</MoveButton>
+                        <MoveButton label={`${sub.name} 아래로`} disabled={subs[subs.length - 1]?.id === sub.id} onClick={() => moveCategory(subs, sub.id, 1)}>↓</MoveButton>
                         <button onClick={() => setEditing({ mode: 'edit', category: sub })}>편집</button>
                         <button onClick={() => remove(sub)}>삭제</button>
                       </span>
@@ -81,6 +91,23 @@ export function CategoryScreen() {
         />
       )}
     </>
+  );
+}
+
+function moveItem<T extends { id: string }>(items: T[], id: string, delta: -1 | 1): T[] {
+  const index = items.findIndex((item) => item.id === id);
+  const nextIndex = index + delta;
+  if (index < 0 || nextIndex < 0 || nextIndex >= items.length) return items;
+  const next = [...items];
+  [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+  return next;
+}
+
+function MoveButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button aria-label={label} disabled={disabled} onClick={onClick} className="disabled:opacity-25">
+      {children}
+    </button>
   );
 }
 

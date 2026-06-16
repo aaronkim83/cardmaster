@@ -41,6 +41,8 @@ export function MoreScreen() {
       budgets: await db.budgets.toArray(),
       benefits: await db.benefits.toArray(),
       recurringRules: await db.recurringRules.toArray(),
+      importProfiles: await db.importProfiles.toArray(),
+      merchantRules: await db.merchantRules.toArray(),
       balanceSnapshots: await db.balanceSnapshots.toArray(),
       settings: await db.settings.toArray(),
     };
@@ -69,7 +71,7 @@ export function MoreScreen() {
         <Row icon="🏷️" name="카테고리 관리" desc="아이콘·색상·실적 제외 설정" onClick={() => navigate('category')} />
         <Row icon="💾" name="백업 (JSON 내보내기)" desc="전 데이터를 파일로 저장" onClick={backup} />
         <Row icon="♻️" name="복원 (JSON 불러오기)" desc="백업 파일에서 데이터 복구" onClick={() => fileRef.current?.click()} />
-        <Row icon="⚙️" name="환경설정" desc="알림 · 표시 · 저장소" />
+        <Row icon="⚙️" name="환경설정" desc="데모 데이터 · 저장소 상태" onClick={() => navigate('settings')} />
         <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void restore(f); e.target.value = ''; }} />
       </div>
     </>

@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { useAccountMap } from '../store/lookups';
 import { buildCategoryMap, isExcludedForCard } from '../logic/category';
 import { isRuleActiveInMonth, dueDate } from '../logic/recurring';
+import { inMonth } from '../logic/period';
 import { AppHead, AddButton, Toggle } from '../ui/components';
 import { Modal, Labeled, TextInput, NumberField, PrimaryButton, ChoiceRow } from '../ui/Modal';
 import { won } from '../ui/format';
@@ -17,6 +18,8 @@ export function RecurringScreen() {
   const saveRecurring = useAppStore((s) => s.saveRecurring);
   const deleteRecurring = useAppStore((s) => s.deleteRecurring);
   const addTransaction = useAppStore((s) => s.addTransaction);
+  const updateTransaction = useAppStore((s) => s.updateTransaction);
+  const transactions = useAppStore((s) => s.transactions);
   const accMap = useAccountMap();
   const catMap = useMemo(() => buildCategoryMap(categories), [categories]);
   const [editing, setEditing] = useState<RecurringRule | null>(null);
@@ -36,11 +39,14 @@ export function RecurringScreen() {
     if (!input) return;
     const amount = Number(input.replace(/[^\d]/g, ''));
     if (!amount) return;
-    await addTransaction({
+    const pending = transactions.find((t) => t.recurringId === r.id && t.status === 'pending' && inMonth(t.date, selectedMonth));
+    const next = {
       date: dueDate(r, selectedMonth), type: r.type, amount, accountId: r.accountId,
       categoryId: r.categoryId, merchant: r.name, countsForPerformance: null,
-      source: 'recurring', status: 'confirmed', recurringId: r.id,
-    });
+      source: 'recurring' as const, status: 'confirmed' as const, recurringId: r.id,
+    };
+    if (pending) await updateTransaction(pending.id, next);
+    else await addTransaction(next);
   }
 
   return (

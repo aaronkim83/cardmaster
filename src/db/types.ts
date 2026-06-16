@@ -130,7 +130,7 @@ export interface RecurringRule {
 export interface ImportProfile {
   id: string;
   name: string;
-  columnMap: { date: string; amount: string; merchant: string; type?: string };
+  columnMap: { date: string; amount: string; merchant: string; type?: string; card?: string };
   defaultAccountId?: string;
   dateFormat?: string;
   amountSign?: 'positive_expense' | 'negative_expense';

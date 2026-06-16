@@ -4,7 +4,10 @@ import type { Account, Benefit, Budget, CardConfig, RecurringRule, Transaction }
 
 // 첫 실행 데모 데이터 — 계좌/카드/혜택/자동이체/거래/예산.
 // 온보딩 UI 전까지 화면이 의미 있게 렌더링되도록 prototype과 유사한 데이터를 시드한다.
-// accounts 테이블이 비어 있을 때만 1회 실행.
+// demoSeeded 플래그가 없고 accounts 테이블이 비어 있을 때만 1회 실행.
+
+export const DEMO_SEEDED_SETTING_KEY = 'demoSeeded';
+export const ONBOARDED_SETTING_KEY = 'onboarded';
 
 function card(cfg: Partial<CardConfig>): CardConfig {
   return {
@@ -64,8 +67,18 @@ function cardAcc(
 }
 
 export async function seedDemoDataIfEmpty(): Promise<void> {
-  if ((await db.accounts.count()) > 0) return;
+  const demoSeeded = await db.settings.get(DEMO_SEEDED_SETTING_KEY);
+  if (demoSeeded?.value === true) return;
 
+  if ((await db.accounts.count()) > 0) {
+    await db.settings.put({ key: DEMO_SEEDED_SETTING_KEY, value: true });
+    return;
+  }
+
+  await seedDemoData();
+}
+
+export async function seedDemoData(): Promise<void> {
   // 카테고리 이름 → id 매핑 (시드된 2단 카테고리에서)
   const cats = await db.categories.toArray();
   const catId = (name: string, parent?: boolean): string | undefined => {
@@ -148,11 +161,15 @@ export async function seedDemoDataIfEmpty(): Promise<void> {
     { id: 'bud-transit', categoryId: catId('교통', true) ?? null, amount: 120000, isActive: true },
   ];
 
-  await db.transaction('rw', [db.accounts, db.benefits, db.recurringRules, db.transactions, db.budgets], async () => {
+  await db.transaction('rw', [db.accounts, db.benefits, db.recurringRules, db.transactions, db.budgets, db.settings], async () => {
     await db.accounts.bulkAdd(accounts);
     await db.benefits.bulkAdd(benefits);
     await db.recurringRules.bulkAdd(rules);
     await db.transactions.bulkAdd(txns);
     await db.budgets.bulkAdd(budgets);
+    await db.settings.bulkPut([
+      { key: DEMO_SEEDED_SETTING_KEY, value: true },
+      { key: ONBOARDED_SETTING_KEY, value: false },
+    ]);
   });
 }

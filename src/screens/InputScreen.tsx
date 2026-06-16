@@ -76,23 +76,23 @@ export function InputScreen() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex items-baseline justify-between px-[18px] pb-1.5 pt-2">
-        <h1 className="text-[21px] font-extrabold tracking-[-0.03em]">{incomeMode ? '수입 입력' : type === 'transfer' ? '이체' : '지출 입력'}</h1>
+      <div className="flex items-baseline justify-between px-[18px] pb-1 pt-2">
+        <h1 className="text-[19px] font-extrabold">{incomeMode ? '수입 입력' : type === 'transfer' ? '이체' : '지출 입력'}</h1>
         <span className="rounded-lg bg-line2 px-[11px] py-1.5 text-[12px] font-bold text-sub" onClick={() => navigate('import')}>📄 엑셀·붙여넣기</span>
       </div>
 
       <div className="mx-[18px] flex rounded-xl bg-line2 p-[3px]">
         {TYPES.map((t) => (
-          <button key={t.value} onClick={() => { setType(t.value); setPerfOverride(null); setShowAllAccounts(false); }} className={`flex-1 rounded-[9px] py-2 text-center text-[13px] font-bold ${type === t.value ? 'bg-surface text-ink shadow-sm' : 'text-sub'}`}>{t.label}</button>
+          <button key={t.value} onClick={() => { setType(t.value); setPerfOverride(null); setShowAllAccounts(false); }} className={`flex-1 rounded-[9px] py-1.5 text-center text-[13px] font-bold ${type === t.value ? 'bg-surface text-ink shadow-sm' : 'text-sub'}`}>{t.label}</button>
         ))}
       </div>
 
-      <div className="flex-none px-5 pb-1.5 pt-2 text-center">
-        <div className="mb-[5px] text-[11.5px] font-semibold text-sub">금액</div>
-        <div className={`num text-[30px] font-extrabold tracking-[-0.03em] ${incomeMode ? 'text-good' : ''}`}>{won(amount)}<span className="text-faint">원</span></div>
+      <div className="flex-none px-5 pb-1 pt-1.5 text-center">
+        <div className="mb-[3px] text-[11px] font-semibold text-sub">금액</div>
+        <div className={`num text-[27px] font-extrabold ${incomeMode ? 'text-good' : ''}`}>{won(amount)}<span className="text-faint">원</span></div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-[18px] pb-4 [&::-webkit-scrollbar]:hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto px-[18px] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: 'calc(18px + var(--keyboard-inset, 0px))' }}>
         <Group label="날짜">
           <Opts>
             {[0, 1].map((d) => {
@@ -150,12 +150,6 @@ export function InputScreen() {
           </Group>
         )}
 
-        {!incomeMode && type !== 'transfer' && (
-          <Group label="가맹점 (선택)">
-            <input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="가맹점·메모" className="w-full rounded-[10px] border-[1.5px] border-line bg-surface px-3 py-2.5 text-[13px] outline-none" />
-          </Group>
-        )}
-
         {type === 'expense' && (
           <div className="mb-3">
             <div className="flex items-center justify-between rounded-xl border-[1.5px] border-line bg-surface px-3.5 py-3">
@@ -170,6 +164,12 @@ export function InputScreen() {
               </button>
             </div>
           </div>
+        )}
+
+        {!incomeMode && type !== 'transfer' && (
+          <Group label="가맹점 (선택)">
+            <input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="가맹점·메모" className="w-full rounded-[10px] border-[1.5px] border-line bg-surface px-3 py-2.5 text-[13px] outline-none" />
+          </Group>
         )}
       </div>
 

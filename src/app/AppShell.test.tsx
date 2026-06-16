@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, cleanup } from '@testing-library/react';
 import { AppShell } from './AppShell';
 import { useAppStore } from '../store/useAppStore';
+import { makeAccount } from '../logic/testUtils';
 
 // 런타임 스모크 — 시드 → 로드 → Home 렌더가 에러 없이 동작하는지.
 describe('AppShell 렌더 스모크', () => {
@@ -46,6 +47,20 @@ describe('AppShell 렌더 스모크', () => {
     expect(screen.getByText(/M포인트 5% 적립/)).toBeTruthy();
   });
 
+  it('입력 화면은 카테고리 직후 소분류와 실적 토글을 노출한다', async () => {
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+    act(() => useAppStore.getState().navigate('input'));
+
+    await waitFor(() => expect(screen.getByText('지출 입력')).toBeTruthy());
+    fireEvent.click(screen.getByText(/식비/));
+
+    expect(screen.getByText('마트')).toBeTruthy();
+    expect(screen.getByText('실적 인정')).toBeTruthy();
+    const bodyText = document.body.textContent ?? '';
+    expect(bodyText.indexOf('실적 인정')).toBeLessThan(bodyText.indexOf('가맹점'));
+  });
+
   it('예산 설정 화면으로 이동하면 등록된 예산이 렌더된다', async () => {
     render(<AppShell />);
     await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
@@ -54,11 +69,20 @@ describe('AppShell 렌더 스모크', () => {
     expect(screen.getByText('등록된 예산')).toBeTruthy();
   });
 
+  it('환경설정 화면으로 이동하면 데모 데이터 관리 액션이 렌더된다', async () => {
+    render(<AppShell />);
+    await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
+    act(() => useAppStore.getState().navigate('settings'));
+    await waitFor(() => expect(screen.getByText('환경설정')).toBeTruthy());
+    expect(screen.getByText('데모 데이터 삭제')).toBeTruthy();
+    expect(screen.getByText('전체 초기화')).toBeTruthy();
+  });
+
   it('계좌 편집에서 마이너스 잔액을 저장할 수 있다', async () => {
     render(<AppShell />);
     await waitFor(() => expect(screen.getByText('카드 실적')).toBeTruthy(), { timeout: 4000 });
     act(() => useAppStore.getState().navigate('assets'));
-    fireEvent.click(await screen.findByRole('button', { name: /주거래 통장/ }));
+    fireEvent.click(await screen.findByRole('button', { name: '주거래 통장 편집' }));
 
     fireEvent.change(screen.getByLabelText('시작 잔액 (원)'), { target: { value: '-500000' } });
     fireEvent.click(screen.getByText('저장'));
@@ -129,5 +153,70 @@ describe('AppShell 렌더 스모크', () => {
       expect(benefit?.valueType).toBe('fixed');
       expect(benefit?.fixedAmount).toBe(1500);
     });
+  });
+
+  it('환경설정에서 데모를 지우면 다시 로드해도 데모가 자동 재생성되지 않는다', async () => {
+    await act(async () => {
+      await useAppStore.getState().loadDemoData();
+    });
+    expect(useAppStore.getState().accounts.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      await useAppStore.getState().resetAllData({ onboarded: true });
+    });
+    expect(useAppStore.getState().accounts).toHaveLength(0);
+    expect(useAppStore.getState().transactions).toHaveLength(0);
+    expect(useAppStore.getState().categories.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      await useAppStore.getState().loadAll();
+    });
+    expect(useAppStore.getState().accounts).toHaveLength(0);
+    expect(useAppStore.getState().transactions).toHaveLength(0);
+  });
+
+  it('도래한 자동이체는 한 번만 실체화되고 변동 금액은 pending으로 남는다', async () => {
+    await act(async () => {
+      await useAppStore.getState().resetAllData({ onboarded: true });
+      await useAppStore.getState().saveAccount(makeAccount({ id: 'acc-recurring', name: '자동이체 통장' }));
+      await useAppStore.getState().saveRecurring({
+        id: 'rec-variable-test',
+        name: '변동 관리비',
+        type: 'expense',
+        amount: 100000,
+        isVariable: true,
+        accountId: 'acc-recurring',
+        dayOfMonth: 1,
+        startDate: '2026-01-01',
+        autoConfirm: false,
+        isActive: true,
+      });
+    });
+
+    const first = useAppStore.getState().transactions.filter((t) => t.recurringId === 'rec-variable-test');
+    expect(first).toHaveLength(1);
+    expect(first[0].status).toBe('pending');
+
+    await act(async () => {
+      await useAppStore.getState().loadAll();
+    });
+    const second = useAppStore.getState().transactions.filter((t) => t.recurringId === 'rec-variable-test');
+    expect(second).toHaveLength(1);
+  });
+
+  it('계좌 순서 변경 액션은 sortOrder를 저장한다', async () => {
+    await act(async () => {
+      await useAppStore.getState().loadDemoData();
+    });
+    const assets = useAppStore.getState().accounts.filter((a) => a.kind === 'asset').slice(0, 2);
+    expect(assets).toHaveLength(2);
+
+    await act(async () => {
+      await useAppStore.getState().reorderAccounts([assets[1], assets[0]]);
+    });
+
+    const reordered = useAppStore.getState().accounts;
+    expect(reordered.find((a) => a.id === assets[1].id)?.sortOrder).toBe(0);
+    expect(reordered.find((a) => a.id === assets[0].id)?.sortOrder).toBe(1);
   });
 });

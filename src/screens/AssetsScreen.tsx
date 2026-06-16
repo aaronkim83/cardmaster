@@ -18,14 +18,19 @@ export function AssetsScreen() {
   const transactions = useAppStore((s) => s.transactions);
   const saveAccount = useAppStore((s) => s.saveAccount);
   const deleteAccount = useAppStore((s) => s.deleteAccount);
+  const reorderAccounts = useAppStore((s) => s.reorderAccounts);
   const navigate = useAppStore((s) => s.navigate);
   const data = useMonthlyData();
   const [editing, setEditing] = useState<Account | null>(null);
 
-  const assets = accounts.filter((a) => a.kind === 'asset' && a.isActive);
-  const liabilities = accounts.filter((a) => a.kind === 'liability' && a.isActive);
+  const assets = accounts.filter((a) => a.kind === 'asset' && a.isActive).sort(accountSort);
+  const liabilities = accounts.filter((a) => a.kind === 'liability' && a.isActive).sort(accountSort);
 
   const open = (a: Account) => (a.type === 'card' ? navigate('cardedit', { accountId: a.id }) : setEditing(a));
+  const moveAccount = async (list: Account[], id: string, delta: -1 | 1) => {
+    const next = moveItem(list, id, delta);
+    if (next !== list) await reorderAccounts(next);
+  };
 
   return (
     <>
@@ -38,11 +43,11 @@ export function AssetsScreen() {
         </div>
 
         <div className="mb-2.5 mt-5 text-[11px] font-bold uppercase tracking-[0.13em] text-faint">자산</div>
-        {assets.map((a) => <Row key={a.id} a={a} amount={accountBalance(a, transactions)} onClick={() => open(a)} />)}
+        {assets.map((a) => <Row key={a.id} a={a} amount={accountBalance(a, transactions)} canMoveUp={assets[0]?.id !== a.id} canMoveDown={assets[assets.length - 1]?.id !== a.id} onMoveUp={() => moveAccount(assets, a.id, -1)} onMoveDown={() => moveAccount(assets, a.id, 1)} onClick={() => open(a)} />)}
         <div className="mt-1"><AddButton onClick={() => setEditing(blank())}>＋ 계좌 추가</AddButton></div>
 
         {liabilities.length > 0 && <div className="mb-2.5 mt-5 text-[11px] font-bold uppercase tracking-[0.13em] text-faint">부채 · 카드대금</div>}
-        {liabilities.map((a) => <Row key={a.id} a={a} amount={accountBalance(a, transactions)} onClick={() => open(a)} />)}
+        {liabilities.map((a) => <Row key={a.id} a={a} amount={accountBalance(a, transactions)} canMoveUp={liabilities[0]?.id !== a.id} canMoveDown={liabilities[liabilities.length - 1]?.id !== a.id} onMoveUp={() => moveAccount(liabilities, a.id, -1)} onMoveDown={() => moveAccount(liabilities, a.id, 1)} onClick={() => open(a)} />)}
       </div>
 
       {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSave={async (a) => { await saveAccount(a); setEditing(null); }} onDelete={async (id) => { await deleteAccount(id); setEditing(null); }} />}
@@ -54,17 +59,52 @@ function blank(): Account {
   return { id: nanoid(), name: '', kind: 'asset', type: 'bank', balanceMode: 'calculated', openingBalance: 0, isPinned: false, isActive: true, sortOrder: 0, color: '#3A7D44', icon: '계', createdAt: Date.now() };
 }
 
-function Row({ a, amount, onClick }: { a: Account; amount: number; onClick: () => void }) {
+function Row({
+  a,
+  amount,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
+  onClick,
+}: {
+  a: Account;
+  amount: number;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onClick: () => void;
+}) {
   return (
-    <button type="button" onClick={onClick} className="mb-2 flex w-full items-center gap-3 rounded-[13px] bg-surface px-[15px] py-[13px] text-left shadow-card">
-      <Chip color={a.color} imageSrc={a.iconImage} size={32}>{a.icon ?? '·'}</Chip>
-      <div>
-        <div className="text-[13.5px] font-semibold">{a.name}</div>
-        <div className="mt-px text-[11px] font-semibold text-faint">{TYPE_LABEL[a.type] ?? a.type}{a.balanceMode === 'manual' && <span className="ml-1.5 rounded-[5px] border border-line px-1.5 py-px text-[9px] font-bold">수동</span>}</div>
+    <div className="mb-2 flex items-center gap-2 rounded-[13px] bg-surface px-[10px] py-[11px] shadow-card">
+      <button type="button" aria-label={`${a.name} 편집`} onClick={onClick} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <Chip color={a.color} imageSrc={a.iconImage} size={32}>{a.icon ?? '·'}</Chip>
+        <div className="min-w-0">
+          <div className="truncate text-[13.5px] font-semibold">{a.name}</div>
+          <div className="mt-px text-[11px] font-semibold text-faint">{TYPE_LABEL[a.type] ?? a.type}{a.balanceMode === 'manual' && <span className="ml-1.5 rounded-[5px] border border-line px-1.5 py-px text-[9px] font-bold">수동</span>}</div>
+        </div>
+        <span className={`num ml-auto flex-none text-[14.5px] font-bold ${amount < 0 ? 'text-warn' : ''}`}>{amount < 0 ? '−' : ''}{won(Math.abs(amount))}원</span>
+      </button>
+      <div className="flex flex-col gap-1 text-[11px] font-bold text-faint">
+        <button aria-label={`${a.name} 위로`} disabled={!canMoveUp} onClick={onMoveUp} className="rounded-md bg-line2 px-2 py-0.5 disabled:opacity-25">↑</button>
+        <button aria-label={`${a.name} 아래로`} disabled={!canMoveDown} onClick={onMoveDown} className="rounded-md bg-line2 px-2 py-0.5 disabled:opacity-25">↓</button>
       </div>
-      <span className={`num ml-auto text-[14.5px] font-bold ${amount < 0 ? 'text-warn' : ''}`}>{amount < 0 ? '−' : ''}{won(Math.abs(amount))}원</span>
-    </button>
+    </div>
   );
+}
+
+function accountSort(a: Account, b: Account): number {
+  return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ko');
+}
+
+function moveItem<T extends { id: string }>(items: T[], id: string, delta: -1 | 1): T[] {
+  const index = items.findIndex((item) => item.id === id);
+  const nextIndex = index + delta;
+  if (index < 0 || nextIndex < 0 || nextIndex >= items.length) return items;
+  const next = [...items];
+  [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+  return next;
 }
 
 function AccountForm({ account, onClose, onSave, onDelete }: { account: Account; onClose: () => void; onSave: (a: Account) => void; onDelete: (id: string) => void }) {

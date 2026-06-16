@@ -1,11 +1,14 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { useAppStore } from '../store/useAppStore';
+import { db } from '../db/schema';
+import type { ImportProfile } from '../db/types';
 import { parseCardSms, isMatched, type ParseResult } from '../parser/cardSmsParser';
 import { AppHead } from '../ui/components';
 import { won } from '../ui/format';
 import { matchAccountByCardDigits, visibleCardDigits, type CardMatchStatus } from '../logic/cardImportMapping';
 import { suggestExpenseCategory } from '../logic/importClassification';
+import { findImportDuplicates, type ImportDuplicate } from '../logic/importDedup';
 
 const SAMPLE = `[Web발신]
 우리(5578)승인
@@ -37,8 +40,19 @@ interface ExcelRow {
   matchStatus: CardMatchStatus | 'no_card_column';
 }
 
+interface ExcelState {
+  rows: ExcelRow[];
+  fileName: string;
+  columns: ImportProfile['columnMap'];
+  cardColumnName?: string;
+  profileName?: string;
+}
+
+const LATEST_EXCEL_PROFILE_ID = 'latest-excel-profile';
+
 export function ImportScreen() {
   const accounts = useAppStore((s) => s.accounts);
+  const transactions = useAppStore((s) => s.transactions);
   const categories = useAppStore((s) => s.categories);
   const addTransaction = useAppStore((s) => s.addTransaction);
   const navigate = useAppStore((s) => s.navigate);
@@ -47,13 +61,22 @@ export function ImportScreen() {
   const [mode, setMode] = useState<'paste' | 'excel'>('paste');
   const [text, setText] = useState(SAMPLE);
   const [results, setResults] = useState<ParseResult[] | null>(null);
-  const [excel, setExcel] = useState<{ rows: ExcelRow[]; fileName: string; cardColumnName?: string } | null>(null);
+  const [excel, setExcel] = useState<ExcelState | null>(null);
   const [excelFallbackAccount, setExcelFallbackAccount] = useState('');
   const [excelCardMap, setExcelCardMap] = useState<Record<string, string>>({});
   const [showAllExcelRows, setShowAllExcelRows] = useState(false);
+  const [importProfiles, setImportProfiles] = useState<ImportProfile[]>([]);
 
   const cardAccounts = accounts.filter((a) => a.type === 'card' && a.isActive);
   const fallbackAccounts = cardAccounts.length > 0 ? cardAccounts : accounts.filter((a) => a.isActive);
+
+  useEffect(() => {
+    void refreshImportProfiles();
+  }, []);
+
+  async function refreshImportProfiles() {
+    setImportProfiles(await db.importProfiles.toArray());
+  }
 
   const matchAccount = (issuer: string, cardLast4?: string | null): string | undefined => {
     const cardMatch = matchAccountByCardDigits(accounts, cardLast4);
@@ -64,8 +87,10 @@ export function ImportScreen() {
 
   async function saveParsed() {
     if (!results) return;
-    for (const r of results) {
+    const duplicates = parsedDuplicateMap();
+    for (const [index, r] of results.entries()) {
       if (!isMatched(r)) continue;
+      if (duplicates.has(index)) continue;
       const accId = matchAccount(r.issuer, r.cardLast4);
       if (!accId) continue;
       await addTransaction({ date: r.date ?? today(), time: r.time ?? undefined, type: 'expense', amount: r.amount, accountId: accId, merchant: r.merchant, countsForPerformance: null, source: 'parsed', status: 'confirmed' });
@@ -80,11 +105,16 @@ export function ImportScreen() {
     const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
     if (raw.length === 0) { alert('빈 시트입니다.'); return; }
     const headers = Object.keys(raw[0]);
+    const profile = findReusableProfile(headers, importProfiles);
     const find = (kw: string[]) => headers.find((h) => kw.some((k) => h.includes(k)));
-    const dateCol = find(['일자', '날짜', '거래일', '이용일', '승인일']);
-    const amtCol = find(['금액', '이용금액', '승인금액', '출금', '결제']);
-    const merCol = find(['가맹', '내용', '적요', '상호', '거래처']);
-    const cardCol = findCardColumn(headers, [dateCol, amtCol, merCol].filter(Boolean) as string[]);
+    const fromProfile = (key: keyof ImportProfile['columnMap']) => {
+      const col = profile?.columnMap[key];
+      return col && headers.includes(col) ? col : undefined;
+    };
+    const dateCol = fromProfile('date') ?? find(['일자', '날짜', '거래일', '이용일', '승인일']);
+    const amtCol = fromProfile('amount') ?? find(['금액', '이용금액', '승인금액', '출금', '결제']);
+    const merCol = fromProfile('merchant') ?? find(['가맹', '내용', '적요', '상호', '거래처']);
+    const cardCol = fromProfile('card') ?? findCardColumn(headers, [dateCol, amtCol, merCol].filter(Boolean) as string[]);
     if (!dateCol || !amtCol) { alert('날짜/금액 열을 찾지 못했어요.'); return; }
     const rows: ExcelRow[] = raw
       .map((r) => {
@@ -106,26 +136,45 @@ export function ImportScreen() {
         };
       })
       .filter((r) => r.amount > 0 && r.date);
-    setExcel({ rows, fileName: file.name, cardColumnName: cardCol });
-    setExcelFallbackAccount(fallbackAccounts[0]?.id ?? '');
+    setExcel({
+      rows,
+      fileName: file.name,
+      cardColumnName: cardCol,
+      profileName: profile?.name,
+      columns: {
+        date: dateCol,
+        amount: amtCol,
+        merchant: merCol ?? '',
+        card: cardCol,
+      },
+    });
+    setExcelFallbackAccount(profile?.defaultAccountId ?? fallbackAccounts[0]?.id ?? '');
     setExcelCardMap({});
     setShowAllExcelRows(false);
   }
 
   async function saveExcel() {
     if (!excel) return;
-    for (const r of excel.rows) {
+    const duplicates = excelDuplicateMap();
+    for (const [index, r] of excel.rows.entries()) {
+      if (duplicates.has(index)) continue;
       const accountId = resolvedExcelAccountId(r);
       if (!accountId) continue;
       await addTransaction({ date: r.date, type: 'expense', amount: r.amount, accountId, categoryId: r.categoryId, merchant: r.merchant || undefined, countsForPerformance: null, source: 'import', status: 'confirmed' });
     }
+    await saveLatestImportProfile();
     navigate('ledger');
   }
 
   const recognized = results?.filter(isMatched).length ?? 0;
   const excelMatched = excel?.rows.filter((r) => resolvedExcelAccountId(r)).length ?? 0;
   const excelUnmatched = excel ? excel.rows.length - excelMatched : 0;
-  const excelSaveable = excel?.rows.filter((r) => resolvedExcelAccountId(r)).length ?? 0;
+  const excelDuplicates = excelDuplicateMap();
+  const excelDuplicateCount = excelDuplicates.size;
+  const excelSaveable = excel?.rows.filter((r, i) => resolvedExcelAccountId(r) && !excelDuplicates.has(i)).length ?? 0;
+  const parsedDuplicates = parsedDuplicateMap();
+  const parsedDuplicateCount = parsedDuplicates.size;
+  const parsedSaveable = results?.filter((r, i) => isMatched(r) && !parsedDuplicates.has(i) && matchAccount(r.issuer, r.cardLast4)).length ?? 0;
   const excelCardGroups = excel ? cardGroupsForRows(excel.rows, accounts) : [];
   const unresolvedExcelCardGroups = excelCardGroups.filter((group) => !group.autoAccountId);
   const excelPreviewRows = excel ? (showAllExcelRows ? excel.rows : excel.rows.slice(0, 8)) : [];
@@ -137,6 +186,41 @@ export function ImportScreen() {
 
   function setCardGroupAccount(cardDigits: string, accountId: string) {
     setExcelCardMap((prev) => ({ ...prev, [cardDigits]: accountId }));
+  }
+
+  function parsedDuplicateMap(): Map<number, ImportDuplicate> {
+    if (!results) return new Map();
+    return findImportDuplicates(transactions, results.map((r) => {
+      if (!isMatched(r)) return { date: '', amount: 0 };
+      return {
+        date: r.date ?? today(),
+        amount: r.amount,
+        accountId: matchAccount(r.issuer, r.cardLast4),
+        merchant: r.merchant,
+      };
+    }));
+  }
+
+  function excelDuplicateMap(): Map<number, ImportDuplicate> {
+    if (!excel) return new Map();
+    return findImportDuplicates(transactions, excel.rows.map((r) => ({
+      date: r.date,
+      amount: r.amount,
+      accountId: resolvedExcelAccountId(r),
+      merchant: r.merchant,
+    })));
+  }
+
+  async function saveLatestImportProfile() {
+    if (!excel) return;
+    await db.importProfiles.put({
+      id: LATEST_EXCEL_PROFILE_ID,
+      name: '최근 엑셀 가져오기',
+      columnMap: excel.columns,
+      defaultAccountId: excelFallbackAccount || undefined,
+      amountSign: 'positive_expense',
+    });
+    await refreshImportProfiles();
   }
 
   return (
@@ -155,15 +239,30 @@ export function ImportScreen() {
             {results && (
               <>
                 <Recognized n={recognized} extra={results.length - recognized} />
+                {parsedDuplicateCount > 0 && (
+                  <div className="mt-2 rounded-xl bg-line2 px-[13px] py-[9px] text-[12px] font-semibold text-sub">
+                    중복 <b className="text-warn">{parsedDuplicateCount}건</b>은 저장에서 제외합니다.
+                  </div>
+                )}
                 <div className="mt-3.5 overflow-hidden rounded-[13px] shadow-card">
                   <PreviewHead />
-                  {results.map((r, i) => isMatched(r) ? (
-                    <PreviewRow key={i} date={r.date?.slice(5) ?? '--'} mer={`${r.merchant} · ${r.issuer}`} amount={r.amount} icon={r.kind === '매출접수' ? '📩' : '✓'} />
-                  ) : (
-                    <div key={i} className="flex items-center border-t border-line2 px-[13px] py-2.5 text-[12px] font-semibold text-warn"><span className="w-[46px]">⚠</span><span className="flex-1">미인식 — 직접 입력</span></div>
-                  ))}
+                  {results.map((r, i) => {
+                    const duplicate = parsedDuplicates.get(i);
+                    return isMatched(r) ? (
+                      <PreviewRow
+                        key={i}
+                        date={r.date?.slice(5) ?? '--'}
+                        mer={`${r.merchant} · ${r.issuer}`}
+                        sub={duplicate ? duplicateLabel(duplicate) : undefined}
+                        amount={r.amount}
+                        icon={duplicate ? '↺' : r.kind === '매출접수' ? '📩' : '✓'}
+                      />
+                    ) : (
+                      <div key={i} className="flex items-center border-t border-line2 px-[13px] py-2.5 text-[12px] font-semibold text-warn"><span className="w-[46px]">⚠</span><span className="flex-1">미인식 — 직접 입력</span></div>
+                    );
+                  })}
                 </div>
-                {recognized > 0 && <SaveBtn onClick={saveParsed}>{recognized}건 저장</SaveBtn>}
+                {recognized > 0 && <SaveBtn onClick={saveParsed} disabled={parsedSaveable === 0}>{parsedDuplicateCount > 0 ? `${parsedSaveable}건 저장 · 중복 ${parsedDuplicateCount}건 제외` : `${parsedSaveable}건 저장`}</SaveBtn>}
               </>
             )}
           </>
@@ -177,9 +276,14 @@ export function ImportScreen() {
             {excel && (
               <>
                 <div className="mb-3.5 flex items-center gap-1.5 rounded-xl bg-good-bg px-[13px] py-[11px] text-[12.5px] font-semibold text-[#13633a]">✅ {excel.fileName} · <b className="font-extrabold">{excel.rows.length}건</b> 인식</div>
+                {excel.profileName && (
+                  <div className="mb-3.5 rounded-xl bg-line2 px-[13px] py-[9px] text-[12px] font-semibold text-sub">
+                    이전 설정 <b className="text-ink">{excel.profileName}</b>을 적용했어요.
+                  </div>
+                )}
                 <div className="mb-3.5 rounded-xl bg-surface px-[13px] py-[11px] text-[12px] font-semibold leading-relaxed text-sub shadow-card">
                   {excel.cardColumnName ? (
-                    <>카드번호 열 <b className="text-ink">{excel.cardColumnName}</b> · 지정 완료 <b className="text-good">{excelMatched}건</b>{excelUnmatched > 0 && <> · 확인 필요 <b className="text-warn">{excelUnmatched}건</b></>}</>
+                    <>카드번호 열 <b className="text-ink">{excel.cardColumnName}</b> · 지정 완료 <b className="text-good">{excelMatched}건</b>{excelUnmatched > 0 && <> · 확인 필요 <b className="text-warn">{excelUnmatched}건</b></>}{excelDuplicateCount > 0 && <> · 중복 제외 <b className="text-warn">{excelDuplicateCount}건</b></>}</>
                   ) : (
                     <>카드번호 열을 찾지 못했어요. 아래 결제수단으로 저장합니다.</>
                   )}
@@ -215,14 +319,28 @@ export function ImportScreen() {
                 )}
                 <div className="overflow-hidden rounded-[13px] shadow-card">
                   <PreviewHead />
-                  {excelPreviewRows.map((r, i) => <PreviewRow key={i} date={r.date.slice(5)} mer={excelRowTitle(r, resolvedExcelAccountId(r), accounts)} sub={excelRowSub(r)} amount={r.amount} icon={resolvedExcelAccountId(r) ? '✓' : '⚠'} />)}
+                  {excelPreviewRows.map((r, i) => {
+                    const duplicate = excelDuplicates.get(i);
+                    return (
+                      <PreviewRow
+                        key={i}
+                        date={r.date.slice(5)}
+                        mer={excelRowTitle(r, resolvedExcelAccountId(r), accounts)}
+                        sub={excelRowSub(r, duplicate)}
+                        amount={r.amount}
+                        icon={duplicate ? '↺' : resolvedExcelAccountId(r) ? '✓' : '⚠'}
+                      />
+                    );
+                  })}
                   {excel.rows.length > 8 && (
                     <button type="button" onClick={() => setShowAllExcelRows((v) => !v)} className="w-full border-t border-line2 px-[13px] py-2.5 text-center text-[11px] font-semibold text-faint">
                       {showAllExcelRows ? '접기' : `＋ ${excel.rows.length - 8}건 더`}
                     </button>
                   )}
                 </div>
-                <SaveBtn onClick={saveExcel} disabled={excelSaveable !== excel.rows.length}>{excelSaveable === excel.rows.length ? `${excelSaveable}건 모두 저장` : `${excel.rows.length - excelSaveable}건 매핑 필요`}</SaveBtn>
+                <SaveBtn onClick={saveExcel} disabled={excelUnmatched > 0 || excelSaveable === 0}>
+                  {excelUnmatched > 0 ? `${excelUnmatched}건 매핑 필요` : excelDuplicateCount > 0 ? `${excelSaveable}건 저장 · 중복 ${excelDuplicateCount}건 제외` : `${excelSaveable}건 모두 저장`}
+                </SaveBtn>
               </>
             )}
           </>
@@ -287,8 +405,23 @@ function excelRowTitle(row: ExcelRow, accountId: string | undefined, accounts: {
   return merchant;
 }
 
-function excelRowSub(row: ExcelRow): string | undefined {
+function excelRowSub(row: ExcelRow, duplicate?: ImportDuplicate): string | undefined {
+  if (duplicate) return duplicateLabel(duplicate);
   return row.categoryName ? `${row.categoryIcon ?? ''} ${row.categoryName}`.trim() : undefined;
+}
+
+function duplicateLabel(duplicate: ImportDuplicate): string {
+  return duplicate.reason === 'existing' ? '이미 저장된 거래' : '파일 안 중복';
+}
+
+function findReusableProfile(headers: string[], profiles: ImportProfile[]): ImportProfile | undefined {
+  const hasColumn = (column?: string) => !!column && headers.includes(column);
+  return [...profiles].reverse().find((profile) => (
+    hasColumn(profile.columnMap.date) &&
+    hasColumn(profile.columnMap.amount) &&
+    (!profile.columnMap.merchant || hasColumn(profile.columnMap.merchant)) &&
+    (!profile.columnMap.card || hasColumn(profile.columnMap.card))
+  ));
 }
 
 function Tab({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
