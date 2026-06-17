@@ -98,6 +98,35 @@ interface AppState {
 
 const TAB_SCREENS: ScreenId[] = ['home', 'ledger', 'input', 'stats', 'more'];
 
+// 화면(네비) 상태를 sessionStorage에 보존 → 같은 세션 내 새로고침 시 홈으로 튕기지 않고 현재 화면 유지.
+const NAV_KEY = 'siljeok-nav';
+type NavSnapshot = { screen: ScreenId; params: NavParams; history: { screen: ScreenId; params: NavParams }[] };
+
+function loadNav(): NavSnapshot {
+  try {
+    const raw = sessionStorage.getItem(NAV_KEY);
+    if (raw) {
+      const n = JSON.parse(raw) as Partial<NavSnapshot>;
+      if (n && typeof n.screen === 'string') {
+        return { screen: n.screen, params: n.params ?? {}, history: Array.isArray(n.history) ? n.history : [] };
+      }
+    }
+  } catch {
+    /* sessionStorage 미지원/차단 시 무시 */
+  }
+  return { screen: 'home', params: {}, history: [] };
+}
+
+function saveNav(snap: NavSnapshot): void {
+  try {
+    sessionStorage.setItem(NAV_KEY, JSON.stringify(snap));
+  } catch {
+    /* 무시 */
+  }
+}
+
+const initialNav = loadNav();
+
 // 모듈 레벨 시드 1회 가드 (동시 호출 dedupe)
 let seedOnce: Promise<void> | null = null;
 const realizingRecurringByMonth = new Map<string, Promise<void>>();
@@ -106,9 +135,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedMonth: todayYM(),
   loaded: false,
 
-  screen: 'home',
-  params: {},
-  history: [],
+  screen: initialNav.screen,
+  params: initialNav.params,
+  history: initialNav.history,
 
   accounts: [],
   transactions: [],
@@ -133,15 +162,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       ? []
       : [...cur.history, { screen: cur.screen, params: cur.params }];
     set({ screen, params, history });
+    saveNav({ screen, params, history });
   },
   goBack: () => {
     const { history } = get();
     if (history.length === 0) {
       set({ screen: 'home', params: {} });
+      saveNav({ screen: 'home', params: {}, history: [] });
       return;
     }
     const prev = history[history.length - 1];
-    set({ screen: prev.screen, params: prev.params, history: history.slice(0, -1) });
+    const history2 = history.slice(0, -1);
+    set({ screen: prev.screen, params: prev.params, history: history2 });
+    saveNav({ screen: prev.screen, params: prev.params, history: history2 });
   },
 
   loadAll: async () => {

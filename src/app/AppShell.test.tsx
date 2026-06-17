@@ -280,4 +280,11 @@ describe('AppShell 렌더 스모크', () => {
     // 한도 있는 혜택의 남은 금액(…원 남음)이 카드에 표시됨
     await waitFor(() => expect(screen.getAllByText(/원 남음/).length).toBeGreaterThan(0));
   });
+
+  it('navigate 시 화면 상태가 sessionStorage에 저장된다(새로고침 복원용)', () => {
+    act(() => useAppStore.getState().navigate('stats'));
+    const raw = sessionStorage.getItem('siljeok-nav');
+    expect(raw).toBeTruthy();
+    expect(JSON.parse(raw as string).screen).toBe('stats');
+  });
 });

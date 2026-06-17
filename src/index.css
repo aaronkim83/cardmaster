@@ -9,6 +9,10 @@ body {
   color: var(--ink);
   font-family: 'Pretendard Variable', Pretendard, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* 브라우저 기본 당겨서 새로고침(앱 리로드) 비활성화 — 앱 자체 새로고침 사용 */
+  overscroll-behavior: none;
+  height: 100%;
+  overflow: hidden;
 }
 
 * {
